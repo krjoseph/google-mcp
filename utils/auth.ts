@@ -161,3 +161,11 @@ export async function handleOAuthCallback(code: string): Promise<void> {
   const { tokens } = await oauth2Client.getToken(code);
   saveTokensToFile(tokens, tokenPath);
 }
+
+export async function extractAuthToken(authHeader?: string[] | string | undefined): Promise<string | undefined> {
+  let authToken = undefined;
+  if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    authToken = authHeader.slice(7).trim();
+  }
+  return authToken;
+}

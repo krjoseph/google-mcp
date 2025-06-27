@@ -9,16 +9,24 @@ export class ClientManager {
   private clients: Map<string, any> = new Map();
 
   constructor(
-    defaultGoogleCalendarInstance: GoogleCalendar, 
-    defaultGoogleGmailInstance: GoogleGmail, 
-    defaultGoogleDriveInstance: GoogleDrive, 
-    defaultGoogleTasksInstance: GoogleTasks) {
+    defaultGoogleCalendarInstance?: GoogleCalendar, 
+    defaultGoogleGmailInstance?: GoogleGmail, 
+    defaultGoogleDriveInstance?: GoogleDrive, 
+    defaultGoogleTasksInstance?: GoogleTasks) {
     this.clients = new Map();
 
-    this.clients.set("default-google-calendar", defaultGoogleCalendarInstance);
-    this.clients.set("default-google-gmail", defaultGoogleGmailInstance);
-    this.clients.set("default-google-drive", defaultGoogleDriveInstance);
-    this.clients.set("default-google-tasks", defaultGoogleTasksInstance);
+    if (defaultGoogleCalendarInstance) {
+      this.clients.set("default-google-calendar", defaultGoogleCalendarInstance);
+    }
+    if (defaultGoogleGmailInstance) {
+      this.clients.set("default-google-gmail", defaultGoogleGmailInstance);
+    }
+    if (defaultGoogleDriveInstance) {
+      this.clients.set("default-google-drive", defaultGoogleDriveInstance);
+    }
+    if (defaultGoogleTasksInstance) {
+      this.clients.set("default-google-tasks", defaultGoogleTasksInstance);
+    }
   }
 
   public async getGoogleCalendarInstance(authToken?: string): Promise<GoogleCalendar> {
