@@ -1,1 +1,1 @@
-web: npm run dev -- --multiuser --transport http
+web: tsx index.ts --multiuser --transport http
