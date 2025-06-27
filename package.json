@@ -23,11 +23,10 @@
     "google-mcp": "./index.ts"
   },
   "scripts": {
-    "dev": "bun run index.ts",
+    "dev": "tsx index.ts",
     "test": "bun test"
   },
   "devDependencies": {
-    "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -35,6 +34,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.8.0",
     "googleapis": "^148.0.0",
-    "open": "^10.1.0"
+    "open": "^10.1.0",
+    "tsx": "^4.7.0"
   }
 }
