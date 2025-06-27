@@ -69,6 +69,18 @@ if (transportArgIndex !== -1 && process.argv[transportArgIndex + 1]) {
   }
 }
 
+// Parse port argument for HTTP transport
+let HTTP_PORT: number | undefined;
+const portArgIndex = process.argv.findIndex(arg => arg === '--port');
+if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+  const portValue = parseInt(process.argv[portArgIndex + 1], 10);
+  if (!isNaN(portValue) && portValue > 0 && portValue <= 65535) {
+    HTTP_PORT = portValue;
+  } else {
+    console.warn(`Invalid port '${process.argv[portArgIndex + 1]}', using default port 3000.`);
+  }
+}
+
 let clientManager: ClientManager;
 let initializationPromise: Promise<void>;
 
@@ -688,7 +700,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
 
 // Connect the server to the selected transport
 if (TRANSPORT === 'http') {
-  const httpHandler = new HttpTransportHandler(server);
+  const httpConfig: HttpTransportConfig = {};
+  if (HTTP_PORT !== undefined) {
+    httpConfig.port = HTTP_PORT;
+  }
+  const httpHandler = new HttpTransportHandler(server, httpConfig);
   await httpHandler.connect();
 } else {
   // Connect the server to stdio transport
