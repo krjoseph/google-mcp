@@ -1,1 +1,1 @@
-web: npm run dev -- --multiuser --transport http
+web: bun run dev -- --multiuser --transport http
