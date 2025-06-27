@@ -11,8 +11,9 @@ export class HttpTransportHandler {
   constructor(private server: Server, private config: HttpTransportConfig = {}) {}
 
   async connect(): Promise<void> {
-    const port = this.config.port ?? 3000;
-    const host = this.config.host ?? '127.0.0.1';
+    const port = this.config.port ?? parseInt(process.env.PORT || '3000', 10);
+    const host = this.config.host ?? '0.0.0.0';
+    console.log(`Attempting to start Google MCP Server on http://${host}:${port}/mcp`);
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined
