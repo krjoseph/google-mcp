@@ -22,6 +22,14 @@ export class HttpTransportHandler {
 
     const httpServer = http.createServer(async (req, res) => {
         console.log(`Received request: ${req.method} ${req.url}`);
+        
+        // Capture original end method to log response
+        const originalEnd = res.end;
+        res.end = function(chunk?: any, encoding?: any, cb?: any) {
+            console.log(`Response: ${req.method} ${req.url} - Status: ${res.statusCode}`);
+            return originalEnd.call(this, chunk, encoding, cb);
+        };
+        
         if (req.method === 'GET' && req.url === '/health') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
