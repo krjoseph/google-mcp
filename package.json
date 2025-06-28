@@ -23,7 +23,7 @@
     "google-mcp": "./index.ts"
   },
   "scripts": {
-    "dev": "tsx index.ts",
+    "dev": "npx tsx index.ts",
     "test": "bun test"
   },
   "devDependencies": {

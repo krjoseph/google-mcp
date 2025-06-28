@@ -13,7 +13,6 @@ export class HttpTransportHandler {
   async connect(): Promise<void> {
     const port = this.config.port ?? parseInt(process.env.PORT || '3000', 10);
     const host = this.config.host ?? '0.0.0.0';
-    console.log(`Attempting to start Google MCP Server on http://${host}:${port}/mcp`);
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined
@@ -22,6 +21,7 @@ export class HttpTransportHandler {
     await this.server.connect(transport);
 
     const httpServer = http.createServer(async (req, res) => {
+        console.log(`Received request: ${req.method} ${req.url}`);
         if (req.method === 'GET' && req.url === '/health') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
@@ -33,21 +33,19 @@ export class HttpTransportHandler {
             return;
         }
 
-        if (req.method === 'POST' && req.url === '/mcp') {
-            try {
-                await transport.handleRequest(req, res);
-            } catch (error) {
-                console.error(error);
-                if (!res.headersSent) {
-                    res.writeHead(500, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({
-                        jsonrpc: '2.0',
-                        error: {
-                            code: -32603,
-                            message: 'Internal server error',
-                        }
-                    }));
-                }
+        try {
+            await transport.handleRequest(req, res);
+        } catch (error) {
+            console.error(error);
+            if (!res.headersSent) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    jsonrpc: '2.0',
+                    error: {
+                        code: -32603,
+                        message: 'Internal server error',
+                    }
+                }));
             }
         }
     });
