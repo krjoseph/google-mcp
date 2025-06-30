@@ -91,6 +91,8 @@ export default class GoogleCalendar {
       if (q) params.q = q;
       if (showDeleted) params.showDeleted = true;
 
+      console.log(`Listing calendar events with params ${JSON.stringify(params)}`);
+
       const res = await this.calendar.events.list(params);
 
       return (
