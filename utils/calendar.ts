@@ -81,21 +81,15 @@ export default class GoogleCalendar {
       const params: any = {
         calendarId: targetCalendarId,
         maxResults: limit,
+        timeMin: timeMin || new Date().toISOString(),
         singleEvents: true,
         orderBy: "startTime",
       };
-
-      // Handle timeMin - only set if provided, otherwise let API use default
-      if (timeMin) {
-        params.timeMin = timeMin;
-      }
 
       // Add optional parameters
       if (timeMax) params.timeMax = timeMax;
       if (q) params.q = q;
       if (showDeleted) params.showDeleted = true;
-
-      console.log(params);
 
       const res = await this.calendar.events.list(params);
 
