@@ -1,5 +1,12 @@
 import { google } from "googleapis";
 
+export interface ListOfDocuments {
+      name: string;
+      type: string;
+      link: string;
+      size: string;
+}
+
 export default class GoogleDrive {
   private drive: any;
 
@@ -12,7 +19,7 @@ export default class GoogleDrive {
     pageSize: number = 10,
     orderBy?: string,
     fields?: string
-  ) {
+  ): Promise<ListOfDocuments[]> {
     try {
       const response = await this.drive.files.list({
         q: query || "trashed = false",
@@ -24,19 +31,17 @@ export default class GoogleDrive {
       });
 
       if (!response.data.files || response.data.files.length === 0) {
-        return "No files found.";
+        return [];
       }
 
-      return response.data.files
-        .map((file: any) => {
-          const size = file.size
-            ? `${(parseInt(file.size) / 1024).toFixed(2)} KB`
-            : "N/A";
-          return `${file.name} (${file.mimeType})\nID: ${file.id}\nModified: ${
-            file.modifiedTime
-          }\nSize: ${size}\nLink: ${file.webViewLink || "N/A"}`;
-        })
-        .join("\n\n---\n\n");
+      return response.data.files.map((file: any) => (
+        {
+          name: file.name,
+          type: file.mimeType,
+          link: file.webViewLink,
+          size: file.size,
+        }
+      ));
     } catch (error) {
       throw new Error(
         `Failed to list files: ${

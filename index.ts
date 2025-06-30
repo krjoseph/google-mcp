@@ -455,8 +455,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
           orderBy,
           fields
         );
+
+        if (!result?.length) {
+          return {
+            content: [{ type: "text", text: "No files found" }],
+            isError: false,
+          };
+        }
+
         return {
-          content: [{ type: "text", text: result }],
+          content: [{ type: "text", text: JSON.stringify({
+              data: result,
+              _type: "listOfDocuments",
+            })
+          }],
           isError: false,
         };
       }
