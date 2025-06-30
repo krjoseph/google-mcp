@@ -111,6 +111,7 @@ export default class GoogleDrive {
     try {
       const fileMetadata: any = {
         name: name,
+        mimeType: mimeType,
       };
 
       if (folderId) {
@@ -119,7 +120,6 @@ export default class GoogleDrive {
 
       // If creating a Google Doc, Spreadsheet, etc.
       if (mimeType.includes("application/vnd.google-apps")) {
-        console.log(`Creating file ${name} with mimeType ${mimeType} and metadata ${JSON.stringify(fileMetadata)} and content ${JSON.stringify(content)}`);
         const response = await this.drive.files.create({
           requestBody: fileMetadata,
           fields: "id,name,webViewLink",
@@ -130,7 +130,6 @@ export default class GoogleDrive {
         return `Created ${mimeType} with name: ${name}\nID: ${id}\nLink: ${webViewLink}`;
       }
 
-      console.log(`Creating non-Google file ${name} with mimeType ${mimeType} and metadata ${JSON.stringify(fileMetadata)} and content ${JSON.stringify(content)}`);
       // For regular files with content
       const response = await this.drive.files.create({
         requestBody: fileMetadata,
