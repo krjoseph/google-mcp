@@ -116,6 +116,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
     const { name, arguments: args } = request.params;
     if (!args) throw new Error("No arguments provided");
 
+    console.log(`Calling tool: ${name} with args ${JSON.stringify(args)}`);
+
     switch (name) {
       // Calendar tools handlers
       case "google_calendar_set_default": {
