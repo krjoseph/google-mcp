@@ -813,7 +813,7 @@ export const toolsPerScope = {
     GET_EMAIL_TOOL,
     GET_EMAIL_BY_INDEX_TOOL,
   ],
-  "https://www.googleapis.com/auth/gmail": [
+  "https://mail.google.com/": [
     LIST_LABELS_TOOL,
     LIST_EMAILS_TOOL,
     GET_EMAIL_TOOL,
