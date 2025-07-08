@@ -23,18 +23,18 @@
     "google-mcp": "./index.ts"
   },
   "scripts": {
-    "dev": "bun run index.ts",
+    "dev": "npx tsx index.ts",
     "test": "bun test"
   },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
+  "devDependencies": {},
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.8.0",
+    "@modelcontextprotocol/sdk": "^1.13.2",
     "googleapis": "^148.0.0",
-    "open": "^10.1.0"
+    "open": "^10.1.2",
+    "tsx": "^4.20.3",
+    "date-fns": "^4.1.0"
   }
 }

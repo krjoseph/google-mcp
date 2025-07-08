@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { normalizeToRFC3339 } from "./dateUtils";
 
 export default class GoogleCalendar {
   private calendar: any;
@@ -81,15 +82,17 @@ export default class GoogleCalendar {
       const params: any = {
         calendarId: targetCalendarId,
         maxResults: limit,
-        timeMin: timeMin || new Date().toISOString(),
+        timeMin: timeMin ? normalizeToRFC3339(timeMin) : new Date().toISOString(),
         singleEvents: true,
         orderBy: "startTime",
       };
 
       // Add optional parameters
-      if (timeMax) params.timeMax = timeMax;
+      if (timeMax) params.timeMax = normalizeToRFC3339(timeMax);
       if (q) params.q = q;
       if (showDeleted) params.showDeleted = true;
+
+      console.log(`Listing calendar events with params ${JSON.stringify(params)}`);
 
       const res = await this.calendar.events.list(params);
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -10,7 +9,7 @@ import GoogleGmail from "./utils/gmail";
 import GoogleDrive from "./utils/drive";
 import GoogleTasks from "./utils/tasks";
 import tools from "./tools";
-import { createAuthClient } from "./utils/auth";
+import { createAuthClient, extractAuthToken } from "./utils/auth";
 import {
   // Calendar validators
   isCreateEventArgs,
@@ -49,11 +48,40 @@ import {
   isCreateTaskListArgs,
   isDeleteTaskListArgs,
 } from "./utils/helper";
+import { ClientManager } from "./utils/client-manager";
+import { StdioTransportHandler } from "./transports/StdioTransportHandler";
+import { HttpTransportHandler, type HttpTransportConfig } from "./transports/HttpTransportHandler";
 
-let googleCalendarInstance: GoogleCalendar;
-let googleGmailInstance: GoogleGmail;
-let googleDriveInstance: GoogleDrive;
-let googleTasksInstance: GoogleTasks;
+export let MULTIUSER_MODE = false;
+if (process.argv.includes('--multiuser')) {
+  console.log('Multiuser mode enabled');
+  MULTIUSER_MODE = true;
+}
+
+let TRANSPORT: 'stdio' | 'http' = 'stdio';
+const transportArgIndex = process.argv.findIndex(arg => arg === '--transport');
+if (transportArgIndex !== -1 && process.argv[transportArgIndex + 1]) {
+  const value = process.argv[transportArgIndex + 1];
+  if (value === 'http' || value === 'stdio') {
+    TRANSPORT = value;
+  } else {
+    console.warn(`Unknown transport '${value}', defaulting to stdio.`);
+  }
+}
+
+// Parse port argument for HTTP transport
+let HTTP_PORT: number | undefined;
+const portArgIndex = process.argv.findIndex(arg => arg === '--port');
+if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+  const portValue = parseInt(process.argv[portArgIndex + 1], 10);
+  if (!isNaN(portValue) && portValue > 0 && portValue <= 65535) {
+    HTTP_PORT = portValue;
+  } else {
+    console.warn(`Invalid port '${process.argv[portArgIndex + 1]}', using default port 3000.`);
+  }
+}
+
+let clientManager: ClientManager;
 let initializationPromise: Promise<void>;
 
 // Initialize the MCP server
@@ -68,19 +96,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 // Handle the "call tool" request
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
   try {
-    await initializationPromise;
-    if (
-      !googleCalendarInstance ||
-      !googleGmailInstance ||
-      !googleDriveInstance ||
-      !googleTasksInstance
-    ) {
-      throw new Error("Authentication failed to initialize services");
+    const authToken = await extractAuthToken(context?.requestInfo?.headers?.authorization);
+
+    if (!MULTIUSER_MODE) {
+      await initializationPromise;
+
+      if (!clientManager ||
+        !clientManager.getGoogleCalendarInstance() ||
+        !clientManager.getGoogleGmailInstance() ||
+        !clientManager.getGoogleDriveInstance() ||
+        !clientManager.getGoogleTasksInstance()
+      ) {
+        throw new Error("Authentication failed to initialize services");
+      }
     }
+
     const { name, arguments: args } = request.params;
     if (!args) throw new Error("No arguments provided");
+
+    console.log(`Calling tool: ${name} with args ${JSON.stringify(args)}`);
 
     switch (name) {
       // Calendar tools handlers
@@ -89,7 +125,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_calendar_set_default");
         }
         const { calendarId } = args;
-        const result = googleCalendarInstance.setDefaultCalendarId(calendarId);
+        const result = (await clientManager.getGoogleCalendarInstance(authToken)).setDefaultCalendarId(calendarId);
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -102,7 +138,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             "Invalid arguments for google_calendar_list_calendars"
           );
         }
-        const calendars = await googleCalendarInstance.listCalendars();
+        const calendars = await (await clientManager.getGoogleCalendarInstance(authToken)).listCalendars();
         const formattedResult = calendars
           .map(
             (cal: any) =>
@@ -136,7 +172,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!summary || !start || !end)
           throw new Error("Missing required arguments");
 
-        const result = await googleCalendarInstance.createEvent(
+        const result = await (await clientManager.getGoogleCalendarInstance(authToken)).createEvent(
           summary,
           start,
           end,
@@ -159,7 +195,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_calendar_get_events");
         }
         const { limit, calendarId, timeMin, timeMax, q, showDeleted } = args;
-        const result = await googleCalendarInstance.getEvents(
+        const result = await (await clientManager.getGoogleCalendarInstance(authToken)).getEvents(
           limit || 10,
           calendarId,
           timeMin,
@@ -178,7 +214,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_calendar_get_event");
         }
         const { eventId, calendarId } = args;
-        const result = await googleCalendarInstance.getEvent(
+        const result = await (await clientManager.getGoogleCalendarInstance(authToken)).getEvent(
           eventId,
           calendarId
         );
@@ -217,7 +253,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           recurrence,
         };
 
-        const result = await googleCalendarInstance.updateEvent(
+        const result = await (await clientManager.getGoogleCalendarInstance(authToken)).updateEvent(
           eventId,
           changes,
           calendarId
@@ -234,7 +270,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const { eventId, calendarId } = args;
-        const result = await googleCalendarInstance.deleteEvent(
+        const result = await (await clientManager.getGoogleCalendarInstance(authToken)).deleteEvent(
           eventId,
           calendarId
         );
@@ -252,7 +288,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const { startDate, endDate, duration, calendarIds } = args;
-        const result = await googleCalendarInstance.findFreeTime(
+        const result = await (await clientManager.getGoogleCalendarInstance(authToken)).findFreeTime(
           startDate,
           endDate,
           duration,
@@ -269,7 +305,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!isListLabelsArgs(args)) {
           throw new Error("Invalid arguments for google_gmail_list_labels");
         }
-        const labels = await googleGmailInstance.listLabels();
+        const labels = await (await clientManager.getGoogleGmailInstance(authToken)).listLabels();
         const formattedResult = labels
           .map(
             (label: any) => `${label.name} - ID: ${label.id} (${label.type})`
@@ -286,7 +322,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_gmail_list_emails");
         }
         const { labelIds, maxResults, query } = args;
-        const result = await googleGmailInstance.listEmails(
+        const result = await (await clientManager.getGoogleGmailInstance(authToken)).listEmails(
           labelIds,
           maxResults,
           query
@@ -302,7 +338,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_gmail_get_email");
         }
         const { messageId, format } = args;
-        const result = await googleGmailInstance.getEmail(messageId, format);
+        const result = await (await clientManager.getGoogleGmailInstance(authToken)).getEmail(messageId, format);
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -317,8 +353,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         const { index, format } = args;
         try {
-          const messageId = googleGmailInstance.getMessageIdByIndex(index);
-          const result = await googleGmailInstance.getEmail(messageId, format);
+          const messageId = (await clientManager.getGoogleGmailInstance(authToken)).getMessageIdByIndex(index);
+          const result = await (await clientManager.getGoogleGmailInstance(authToken)).getEmail(messageId, format);
           return {
             content: [{ type: "text", text: result }],
             isError: false,
@@ -343,7 +379,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_gmail_send_email");
         }
         const { to, subject, body, cc, bcc, isHtml } = args;
-        const result = await googleGmailInstance.sendEmail(
+        const result = await (await clientManager.getGoogleGmailInstance(authToken)).sendEmail(
           to,
           subject,
           body,
@@ -362,7 +398,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_gmail_draft_email");
         }
         const { to, subject, body, cc, bcc, isHtml } = args;
-        const result = await googleGmailInstance.draftEmail(
+        const result = await (await clientManager.getGoogleGmailInstance(authToken)).draftEmail(
           to,
           subject,
           body,
@@ -381,7 +417,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_gmail_delete_email");
         }
         const { messageId, permanently } = args;
-        const result = await googleGmailInstance.deleteEmail(
+        const result = await (await clientManager.getGoogleGmailInstance(authToken)).deleteEmail(
           messageId,
           permanently
         );
@@ -396,7 +432,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_gmail_modify_labels");
         }
         const { messageId, addLabelIds, removeLabelIds } = args;
-        const result = await googleGmailInstance.modifyLabels(
+        const result = await (await clientManager.getGoogleGmailInstance(authToken)).modifyLabels(
           messageId,
           addLabelIds,
           removeLabelIds
@@ -413,14 +449,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_drive_list_files");
         }
         const { query, pageSize, orderBy, fields } = args;
-        const result = await googleDriveInstance.listFiles(
+        const result = await (await clientManager.getGoogleDriveInstance(authToken)).listFiles(
           query,
           pageSize,
           orderBy,
           fields
         );
+
+        if (!result?.length) {
+          return {
+            content: [{ type: "text", text: "No files found" }],
+            isError: false,
+          };
+        }
+
         return {
-          content: [{ type: "text", text: result }],
+          content: [{ type: "text", text: JSON.stringify({
+              data: result,
+              _type: "listOfDocuments",
+            })
+          }],
           isError: false,
         };
       }
@@ -432,7 +480,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           );
         }
         const { fileId } = args;
-        const result = await googleDriveInstance.getFileContent(fileId);
+        const result = await (await clientManager.getGoogleDriveInstance(authToken)).getFileContent(fileId);
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -444,7 +492,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_drive_create_file");
         }
         const { name, content, mimeType, folderId } = args;
-        const result = await googleDriveInstance.createFile(
+        const result = await (await clientManager.getGoogleDriveInstance(authToken)).createFile(
           name,
           content,
           mimeType,
@@ -461,7 +509,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_drive_update_file");
         }
         const { fileId, content, mimeType } = args;
-        const result = await googleDriveInstance.updateFile(
+        const result = await (await clientManager.getGoogleDriveInstance(authToken)).updateFile(
           fileId,
           content,
           mimeType
@@ -477,7 +525,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_drive_delete_file");
         }
         const { fileId, permanently } = args;
-        const result = await googleDriveInstance.deleteFile(
+        const result = await (await clientManager.getGoogleDriveInstance(authToken)).deleteFile(
           fileId,
           permanently
         );
@@ -492,7 +540,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_drive_share_file");
         }
         const { fileId, emailAddress, role, sendNotification, message } = args;
-        const result = await googleDriveInstance.shareFile(
+        const result = await (await clientManager.getGoogleDriveInstance(authToken)).shareFile(
           fileId,
           emailAddress,
           role,
@@ -513,7 +561,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           );
         }
         const { taskListId } = args;
-        const result = googleTasksInstance.setDefaultTaskList(taskListId);
+        const result = (await clientManager.getGoogleTasksInstance(authToken)).setDefaultTaskList(taskListId);
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -524,7 +572,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!isListTaskListsArgs(args)) {
           throw new Error("Invalid arguments for google_tasks_list_tasklists");
         }
-        const result = await googleTasksInstance.listTaskLists();
+        const result = await (await clientManager.getGoogleTasksInstance(authToken)).listTaskLists();
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -536,7 +584,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_tasks_list_tasks");
         }
         const { taskListId, showCompleted } = args;
-        const result = await googleTasksInstance.listTasks(
+        const result = await (await clientManager.getGoogleTasksInstance(authToken)).listTasks(
           taskListId,
           showCompleted
         );
@@ -551,7 +599,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_tasks_get_task");
         }
         const { taskId, taskListId } = args;
-        const result = await googleTasksInstance.getTask(taskId, taskListId);
+        const result = await (await clientManager.getGoogleTasksInstance()).getTask(taskId, taskListId);
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -563,7 +611,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_tasks_create_task");
         }
         const { title, notes, due, taskListId } = args;
-        const result = await googleTasksInstance.createTask(
+        const result = await (await clientManager.getGoogleTasksInstance(authToken)).createTask(
           title,
           notes,
           due,
@@ -580,7 +628,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_tasks_update_task");
         }
         const { taskId, title, notes, due, status, taskListId } = args;
-        const result = await googleTasksInstance.updateTask(
+        const result = await (await clientManager.getGoogleTasksInstance(authToken)).updateTask(
           taskId,
           { title, notes, due, status },
           taskListId
@@ -596,7 +644,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_tasks_complete_task");
         }
         const { taskId, taskListId } = args;
-        const result = await googleTasksInstance.completeTask(
+        const result = await (await clientManager.getGoogleTasksInstance(authToken)).completeTask(
           taskId,
           taskListId
         );
@@ -611,7 +659,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_tasks_delete_task");
         }
         const { taskId, taskListId } = args;
-        const result = await googleTasksInstance.deleteTask(taskId, taskListId);
+        const result = await (await clientManager.getGoogleTasksInstance(authToken)).deleteTask(taskId, taskListId);
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -623,7 +671,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_tasks_create_tasklist");
         }
         const { title } = args;
-        const result = await googleTasksInstance.createTaskList(title);
+        const result = await (await clientManager.getGoogleTasksInstance(authToken)).createTaskList(title);
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -635,7 +683,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for google_tasks_delete_tasklist");
         }
         const { taskListId } = args;
-        const result = await googleTasksInstance.deleteTaskList(taskListId);
+        const result = await (await clientManager.getGoogleTasksInstance(authToken)).deleteTaskList(taskListId);
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -649,6 +697,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
     }
   } catch (error) {
+    console.error(error);
     return {
       content: [
         {
@@ -663,17 +712,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// Connect the server to stdio transport
-const transport = new StdioServerTransport();
-server.connect(transport);
+// Connect the server to the selected transport
+if (TRANSPORT === 'http') {
+  const httpConfig: HttpTransportConfig = {};
+  if (HTTP_PORT !== undefined) {
+    httpConfig.port = HTTP_PORT;
+  }
+  const httpHandler = new HttpTransportHandler(server, httpConfig);
+  await httpHandler.connect();
+} else {
+  // Connect the server to stdio transport
+  const stdioHandler = new StdioTransportHandler(server);
+  await stdioHandler.connect();
+}
 
-initializationPromise = createAuthClient()
-  .then((authClient) => {
-    googleCalendarInstance = new GoogleCalendar(authClient);
-    googleGmailInstance = new GoogleGmail(authClient);
-    googleDriveInstance = new GoogleDrive(authClient);
-    googleTasksInstance = new GoogleTasks(authClient);
-  })
-  .catch((error) => {
-    throw error; // This will reject the promise, and tool handlers will reflect the error
-  });
+if (!MULTIUSER_MODE) {
+  initializationPromise = createAuthClient()
+    .then((authClient) => {
+      clientManager = new ClientManager(
+        new GoogleCalendar(authClient),
+        new GoogleGmail(authClient),
+        new GoogleDrive(authClient),
+        new GoogleTasks(authClient)
+      );
+    })
+    .catch((error) => {
+      throw error; // This will reject the promise, and tool handlers will reflect the error
+    });
+} else {
+  clientManager = new ClientManager();
+}

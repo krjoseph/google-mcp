@@ -1,5 +1,7 @@
 // Validation functions for Google Tools arguments.. Just necessary thing
 
+import { createHash } from "crypto";
+
 export function isSetDefaultCalendarArgs(
   args: any
 ): args is { calendarId: string } {
@@ -391,4 +393,8 @@ export function isDeleteTaskListArgs(args: any): args is {
   taskListId: string;
 } {
   return args && typeof args.taskListId === "string";
+}
+
+export function hashString(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
 }

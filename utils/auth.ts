@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import * as fs from "fs";
 import * as path from "path";
 import type { Credentials } from "google-auth-library";
+import { OAuth2Client } from "google-auth-library";
 import { startOAuthServer } from "./oauth-server";
 import open from "open";
 
@@ -32,7 +33,7 @@ function loadTokensFromFile(tokenPath: string): Credentials {
   }
 }
 
-export async function createAuthClient(): Promise<any> {
+export async function createAuthClient(oauthToken?: string): Promise<any> {
   const oauthClientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const oauthClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const oauthTokenPath = process.env.GOOGLE_OAUTH_TOKEN_PATH
@@ -63,6 +64,12 @@ export async function createAuthClient(): Promise<any> {
       oAuth2Client.setCredentials(tokens);
       return oAuth2Client;
     }
+  } else if(oauthToken) {
+    const oauth2Client = new OAuth2Client();
+    oauth2Client.setCredentials({
+      access_token: oauthToken,
+    });
+    return oauth2Client;
   } else {
     // Fallback to service account
     if (!clientEmail || !privateKey) {
@@ -153,4 +160,12 @@ export async function handleOAuthCallback(code: string): Promise<void> {
 
   const { tokens } = await oauth2Client.getToken(code);
   saveTokensToFile(tokens, tokenPath);
+}
+
+export async function extractAuthToken(authHeader?: string[] | string | undefined): Promise<string | undefined> {
+  let authToken = undefined;
+  if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    authToken = authHeader.slice(7).trim();
+  }
+  return authToken;
 }

@@ -94,11 +94,11 @@ export const GET_EVENTS_TOOL: Tool = {
       },
       timeMin: {
         type: "string",
-        description: "Start date/time in ISO format (defaults to now)",
+        description: "Upper bound (exclusive) for an event's start time to filter by. Optional. The default is not to filter by start time. Must be an RFC3339 timestamp with mandatory time zone offset, for example, 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z. Milliseconds may be provided but are ignored. If timeMin is set, timeMax must be greater than timeMin.",
       },
       timeMax: {
         type: "string",
-        description: "End date/time in ISO format",
+        description: "Lower bound (exclusive) for an event's end time to filter by. Optional. The default is not to filter by end time. Must be an RFC3339 timestamp with mandatory time zone offset, for example, 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z. Milliseconds may be provided but are ignored. If timeMax is set, timeMin must be smaller than timeMax.",
       },
       q: {
         type: "string",
