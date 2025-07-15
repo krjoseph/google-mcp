@@ -37,7 +37,7 @@ export class HttpTransportHandler {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 "issuer": "https://accounts.google.com",
-                "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth&access_type=offline",
+                "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth?access_type=offline",
                 "device_authorization_endpoint": "https://oauth2.googleapis.com/device/code",
                 "token_endpoint": "https://oauth2.googleapis.com/token",
                 "userinfo_endpoint": "https://openidconnect.googleapis.com/v1/userinfo",
