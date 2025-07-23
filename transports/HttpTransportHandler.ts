@@ -39,7 +39,7 @@ export class HttpTransportHandler {
                 "issuer": "https://accounts.google.com",
                 "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth?access_type=offline",
                 "device_authorization_endpoint": "https://oauth2.googleapis.com/device/code",
-                "token_endpoint": "https://oauth2.googleapis.com/token",
+                "token_endpoint": "https://oauth2.googleapis.com/token?access_type=offline",
                 "userinfo_endpoint": "https://openidconnect.googleapis.com/v1/userinfo",
                 "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
                 "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
