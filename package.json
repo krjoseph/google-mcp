@@ -30,7 +30,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.13.2",
+    "@modelcontextprotocol/sdk": "^1.17.4",
     "date-fns": "^4.1.0",
     "googleapis": "^148.0.0",
     "open": "^10.1.2",
