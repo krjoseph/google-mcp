@@ -398,3 +398,8 @@ export function isDeleteTaskListArgs(args: any): args is {
 export function hashString(input: string): string {
   return createHash("sha256").update(input).digest("hex");
 }
+
+export function sanitizeString(input: string, { allowNewLines = false }: { allowNewLines?: boolean } = {}): string {
+  const regex = allowNewLines ? /[^\x20-\x7E\n]/g : /[^\x20-\x7E]/g;
+  return input.replace(regex, " ").trim();
+}

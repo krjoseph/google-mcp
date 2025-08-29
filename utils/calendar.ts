@@ -1,8 +1,6 @@
 import { google } from "googleapis";
 import { normalizeToRFC3339 } from "./dateUtils";
-import sanitizeHtml from 'sanitize-html';
-
-declare module 'sanitize-html';
+import { sanitizeString } from "./helper";
 
 export default class GoogleCalendar {
   private calendar: any;
@@ -32,8 +30,8 @@ export default class GoogleCalendar {
     try {
       const targetCalendarId = calendarId || this.defaultCalendarId;
 
-      const sanitizedSummary = sanitizeHtml(summary);
-      const sanitizedDescription = description ? sanitizeHtml(description) : undefined;
+      const sanitizedSummary = sanitizeString(summary, { allowNewLines: true });
+      const sanitizedDescription = description ? sanitizeString(description, { allowNewLines: true }) : undefined;
 
       // Build the request body with required fields
       const requestBody: any = {
@@ -192,9 +190,9 @@ export default class GoogleCalendar {
       const updatedEvent: any = {};
 
       // Only include fields that are being updated
-      if (changes.summary !== undefined) updatedEvent.summary = changes.summary;
+      if (changes.summary !== undefined) updatedEvent.summary = sanitizeString(changes.summary, { allowNewLines: true });
       if (changes.description !== undefined)
-        updatedEvent.description = changes.description;
+        updatedEvent.description = sanitizeString(changes.description, { allowNewLines: true });
       if (changes.location !== undefined)
         updatedEvent.location = changes.location;
       if (changes.colorId !== undefined) updatedEvent.colorId = changes.colorId;

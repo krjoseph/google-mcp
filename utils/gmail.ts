@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import sanitizeHtml from 'sanitize-html';
+import { sanitizeString } from "./helper";
 
 export default class GoogleGmail {
   private gmail: any;
@@ -173,8 +173,8 @@ export default class GoogleGmail {
     isHtml: boolean = false
   ) {
     try {
-      const sanitizedSubject = sanitizeHtml(subject);
-      const sanitizedBody = sanitizeHtml(body);
+      const sanitizedSubject = sanitizeString(subject, { allowNewLines: false });
+      const sanitizedBody = sanitizeString(body, { allowNewLines: true });
       const emailLines = [];
 
       // Add headers
@@ -227,8 +227,8 @@ export default class GoogleGmail {
     isHtml: boolean = false
   ) {
     try {
-      const sanitizedSubject = sanitizeHtml(subject);
-      const sanitizedBody = sanitizeHtml(body);
+      const sanitizedSubject = sanitizeString(subject, { allowNewLines: false });
+      const sanitizedBody = sanitizeString(body, { allowNewLines: true });
       const emailLines = [];
 
       // Add headers
