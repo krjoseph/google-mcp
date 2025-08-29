@@ -1,5 +1,8 @@
 import { google } from "googleapis";
 import { normalizeToRFC3339 } from "./dateUtils";
+import sanitizeHtml from 'sanitize-html';
+
+declare module 'sanitize-html';
 
 export default class GoogleCalendar {
   private calendar: any;
@@ -29,15 +32,18 @@ export default class GoogleCalendar {
     try {
       const targetCalendarId = calendarId || this.defaultCalendarId;
 
+      const sanitizedSummary = sanitizeHtml(summary);
+      const sanitizedDescription = description ? sanitizeHtml(description) : undefined;
+
       // Build the request body with required fields
       const requestBody: any = {
-        summary,
+        summary: sanitizedSummary,
         start: { dateTime: start },
         end: { dateTime: end },
       };
 
       // Add optional fields if provided
-      if (description) requestBody.description = description;
+      if (sanitizedDescription) requestBody.description = sanitizedDescription;
       if (location) requestBody.location = location;
       if (colorId) requestBody.colorId = colorId;
 
