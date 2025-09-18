@@ -4,12 +4,12 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import GoogleCalendar from "./utils/calendar";
-import GoogleGmail from "./utils/gmail";
-import GoogleDrive from "./utils/drive";
-import GoogleTasks from "./utils/tasks";
-import { getToolsForScopes } from "./tools";
-import { createAuthClient, extractAuthToken } from "./utils/auth";
+import GoogleCalendar from "./utils/calendar.js";
+import GoogleGmail from "./utils/gmail.js";
+import GoogleDrive from "./utils/drive.js";
+import GoogleTasks from "./utils/tasks.js";
+import { getToolsForScopes } from "./tools.js";
+import { createAuthClient, extractAuthToken } from "./utils/auth.js";
 import {
   // Calendar validators
   isCreateEventArgs,
@@ -47,10 +47,10 @@ import {
   isDeleteTaskArgs,
   isCreateTaskListArgs,
   isDeleteTaskListArgs,
-} from "./utils/helper";
-import { ClientManager } from "./utils/client-manager";
-import { StdioTransportHandler } from "./transports/StdioTransportHandler";
-import { HttpTransportHandler, type HttpTransportConfig } from "./transports/HttpTransportHandler";
+} from "./utils/helper.js";
+import { ClientManager } from "./utils/client-manager.js";
+import { StdioTransportHandler } from "./transports/StdioTransportHandler.js";
+import { HttpTransportHandler, type HttpTransportConfig } from "./transports/HttpTransportHandler.js";
 
 export let MULTIUSER_MODE = false;
 if (process.argv.includes('--multiuser')) {
@@ -715,33 +715,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
   }
 });
 
-// Connect the server to the selected transport
-if (TRANSPORT === 'http') {
-  const httpConfig: HttpTransportConfig = {};
-  if (HTTP_PORT !== undefined) {
-    httpConfig.port = HTTP_PORT;
+export default async function startServer() {
+  if (TRANSPORT === 'http') {
+    const httpConfig: HttpTransportConfig = {};
+    if (HTTP_PORT !== undefined) {
+      httpConfig.port = HTTP_PORT;
+    }
+    const httpHandler = new HttpTransportHandler(server, httpConfig);
+    await httpHandler.connect();
+  } else {
+    // Connect the server to stdio transport
+    const stdioHandler = new StdioTransportHandler(server);
+    await stdioHandler.connect();
   }
-  const httpHandler = new HttpTransportHandler(server, httpConfig);
-  await httpHandler.connect();
-} else {
-  // Connect the server to stdio transport
-  const stdioHandler = new StdioTransportHandler(server);
-  await stdioHandler.connect();
+
+  if (!MULTIUSER_MODE) {
+    initializationPromise = createAuthClient()
+      .then((authClient) => {
+        clientManager = new ClientManager(
+          new GoogleCalendar(authClient),
+          new GoogleGmail(authClient),
+          new GoogleDrive(authClient),
+          new GoogleTasks(authClient)
+        );
+      })
+      .catch((error) => {
+        throw error; // This will reject the promise, and tool handlers will reflect the error
+      });
+  } else {
+    clientManager = new ClientManager();
+  }
 }
 
-if (!MULTIUSER_MODE) {
-  initializationPromise = createAuthClient()
-    .then((authClient) => {
-      clientManager = new ClientManager(
-        new GoogleCalendar(authClient),
-        new GoogleGmail(authClient),
-        new GoogleDrive(authClient),
-        new GoogleTasks(authClient)
-      );
-    })
-    .catch((error) => {
-      throw error; // This will reject the promise, and tool handlers will reflect the error
-    });
-} else {
-  clientManager = new ClientManager();
-}
+// Call the function to start the server
+startServer();

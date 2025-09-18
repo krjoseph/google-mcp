@@ -1,6 +1,6 @@
 import * as http from "http";
 import { URL } from "url";
-import { handleOAuthCallback } from "./auth";
+import { handleOAuthCallback } from "./auth.js";
 
 const DEFAULT_PORT = process.env.PORT || 3001;
 

@@ -23,6 +23,7 @@
     "google-mcp": "./index.ts"
   },
   "scripts": {
+    "start": "npx tsx index.ts --multiuser --transport http --port $PORT",
     "dev": "npx tsx index.ts",
     "test": "bun test"
   },
@@ -38,6 +39,7 @@
     "tsx": "^4.20.3"
   },
   "devDependencies": {
+    "@types/node": "^24.5.2",
     "@types/sanitize-html": "^2.16.0"
   }
 }

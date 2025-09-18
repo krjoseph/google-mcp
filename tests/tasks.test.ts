@@ -4,9 +4,9 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import GoogleTasks from "../utils/tasks";
-import tools from "../tools";
-import { createAuthClient } from "../utils/auth";
+import GoogleTasks from "../utils/tasks.js";
+import tools from "../tools.js";
+import { createAuthClient } from "../utils/auth.js";
 import {
   isSetDefaultTaskListArgs,
   isListTaskListsArgs,
@@ -18,7 +18,7 @@ import {
   isDeleteTaskArgs,
   isCreateTaskListArgs,
   isDeleteTaskListArgs,
-} from "../utils/helper";
+} from "../utils/helper.js";
 
 function testWithLogging(name: string, testFn: () => Promise<void>) {
   test(name, async () => {

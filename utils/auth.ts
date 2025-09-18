@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { Credentials } from "google-auth-library";
 import { OAuth2Client } from "google-auth-library";
-import { startOAuthServer } from "./oauth-server";
+import { startOAuthServer } from "./oauth-server.js";
 import open from "open";
 
 function saveTokensToFile(tokens: Credentials, tokenPath: string): void {
