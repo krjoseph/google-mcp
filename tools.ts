@@ -774,6 +774,86 @@ export const DELETE_TASKLIST_TOOL: Tool = {
   },
 };
 
+export function getToolsForScopes(scopes?: string[]): Tool[] {
+  if (!scopes) return tools;
+
+  const allTools = scopes
+    .map(scope => toolsPerScope[scope as keyof typeof toolsPerScope])
+    .flat()
+    .filter(Boolean);
+
+  // Remove duplicates by tool name
+  const uniqueTools = allTools.filter((tool, index, self) =>
+    index === self.findIndex(t => t.name === tool.name)
+  );
+
+  return uniqueTools;
+}
+
+export const toolsPerScope = {
+  "https://www.googleapis.com/auth/calendar.readonly": [
+    LIST_CALENDARS_TOOL,
+    GET_EVENTS_TOOL,
+    GET_EVENT_TOOL,
+    FIND_FREE_TIME_TOOL,
+  ],
+  "https://www.googleapis.com/auth/calendar": [
+    SET_DEFAULT_CALENDAR_TOOL,
+    LIST_CALENDARS_TOOL,
+    CREATE_EVENT_TOOL,
+    GET_EVENTS_TOOL,
+    GET_EVENT_TOOL,
+    UPDATE_EVENT_TOOL,
+    DELETE_EVENT_TOOL,
+    FIND_FREE_TIME_TOOL,
+  ],
+  "https://www.googleapis.com/auth/gmail.readonly": [
+    LIST_LABELS_TOOL,
+    LIST_EMAILS_TOOL,
+    GET_EMAIL_TOOL,
+    GET_EMAIL_BY_INDEX_TOOL,
+  ],
+  "https://mail.google.com/": [
+    LIST_LABELS_TOOL,
+    LIST_EMAILS_TOOL,
+    GET_EMAIL_TOOL,
+    GET_EMAIL_BY_INDEX_TOOL,
+    SEND_EMAIL_TOOL,
+    DRAFT_EMAIL_TOOL,
+    DELETE_EMAIL_TOOL,
+    MODIFY_LABELS_TOOL,
+  ],
+  "https://www.googleapis.com/auth/drive.readonly": [
+    LIST_FILES_TOOL,
+    GET_FILE_CONTENT_TOOL,
+  ],
+  "https://www.googleapis.com/auth/drive": [
+    LIST_FILES_TOOL,
+    GET_FILE_CONTENT_TOOL,
+    CREATE_FILE_TOOL,
+    UPDATE_FILE_TOOL,
+    DELETE_FILE_TOOL,
+    SHARE_FILE_TOOL,
+  ],
+  "https://www.googleapis.com/auth/tasks.readonly": [
+    LIST_TASKLISTS_TOOL,
+    LIST_TASKS_TOOL,
+    GET_TASK_TOOL,
+  ],
+  "https://www.googleapis.com/auth/tasks": [
+    SET_DEFAULT_TASKLIST_TOOL,
+    LIST_TASKLISTS_TOOL,
+    LIST_TASKS_TOOL,
+    GET_TASK_TOOL,
+    CREATE_TASK_TOOL,
+    UPDATE_TASK_TOOL,
+    COMPLETE_TASK_TOOL,
+    DELETE_TASK_TOOL,
+    CREATE_TASKLIST_TOOL,
+    DELETE_TASKLIST_TOOL,
+  ],
+};
+
 const tools = [
   // Calendar tools
   SET_DEFAULT_CALENDAR_TOOL,

@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { sanitizeString } from "./helper";
 
 export default class GoogleGmail {
   private gmail: any;
@@ -172,6 +173,8 @@ export default class GoogleGmail {
     isHtml: boolean = false
   ) {
     try {
+      const sanitizedSubject = sanitizeString(subject, { allowNewLines: false });
+      const sanitizedBody = sanitizeString(body, { allowNewLines: true });
       const emailLines = [];
 
       // Add headers
@@ -182,12 +185,12 @@ export default class GoogleGmail {
       if (bcc && bcc.length) {
         emailLines.push(`Bcc: ${bcc.join(", ")}`);
       }
-      emailLines.push(`Subject: ${subject}`);
+      emailLines.push(`Subject: ${sanitizedSubject}`);
       emailLines.push(
         `Content-Type: ${isHtml ? "text/html" : "text/plain"}; charset=utf-8`
       );
       emailLines.push("");
-      emailLines.push(body);
+      emailLines.push(sanitizedBody);
 
       // Encode the email
       const email = emailLines.join("\r\n");
@@ -224,6 +227,8 @@ export default class GoogleGmail {
     isHtml: boolean = false
   ) {
     try {
+      const sanitizedSubject = sanitizeString(subject, { allowNewLines: false });
+      const sanitizedBody = sanitizeString(body, { allowNewLines: true });
       const emailLines = [];
 
       // Add headers
@@ -234,12 +239,12 @@ export default class GoogleGmail {
       if (bcc && bcc.length) {
         emailLines.push(`Bcc: ${bcc.join(", ")}`);
       }
-      emailLines.push(`Subject: ${subject}`);
+      emailLines.push(`Subject: ${sanitizedSubject}`);
       emailLines.push(
         `Content-Type: ${isHtml ? "text/html" : "text/plain"}; charset=utf-8`
       );
       emailLines.push("");
-      emailLines.push(body);
+      emailLines.push(sanitizedBody);
 
       // Encode the email
       const email = emailLines.join("\r\n");

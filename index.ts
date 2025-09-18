@@ -8,7 +8,7 @@ import GoogleCalendar from "./utils/calendar";
 import GoogleGmail from "./utils/gmail";
 import GoogleDrive from "./utils/drive";
 import GoogleTasks from "./utils/tasks";
-import tools from "./tools";
+import { getToolsForScopes } from "./tools";
 import { createAuthClient, extractAuthToken } from "./utils/auth";
 import {
   // Calendar validators
@@ -91,9 +91,12 @@ const server = new Server(
 );
 
 // Handle the "list tools" request
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools,
-}));
+server.setRequestHandler(ListToolsRequestSchema, async (request) => {
+  const scopes = (request?.params?.scope as string)?.split(" ");
+  console.log(`Requesting tools for scopes: ${scopes ? JSON.stringify(scopes): "<all>"}`);
+  const tools = getToolsForScopes(scopes);
+  return { tools };
+});
 
 // Handle the "call tool" request
 server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
