@@ -4,9 +4,9 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import GoogleDrive from "../utils/drive";
-import tools from "../tools";
-import { createAuthClient } from "../utils/auth";
+import GoogleDrive from "../utils/drive.js";
+import tools from "../tools.js";
+import { createAuthClient } from "../utils/auth.js";
 import {
   isListFilesArgs,
   isGetFileContentArgs,
@@ -14,7 +14,7 @@ import {
   isUpdateFileArgs,
   isDeleteFileArgs,
   isShareFileArgs,
-} from "../utils/helper";
+} from "../utils/helper.js";
 
 function testWithLogging(name: string, testFn: () => Promise<void>) {
   test(name, async () => {

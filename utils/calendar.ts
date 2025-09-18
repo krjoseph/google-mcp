@@ -1,6 +1,6 @@
 import { google } from "googleapis";
-import { normalizeToRFC3339 } from "./dateUtils";
-import { sanitizeString } from "./helper";
+import { normalizeToRFC3339 } from "./dateUtils.js";
+import { sanitizeString } from "./helper.js";
 
 export default class GoogleCalendar {
   private calendar: any;

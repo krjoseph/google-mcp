@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { sanitizeString } from "./helper";
+import { sanitizeString } from "./helper.js";
 
 export default class GoogleGmail {
   private gmail: any;

@@ -1,9 +1,9 @@
-import GoogleCalendar from "./calendar";
-import GoogleGmail from "./gmail";
-import GoogleDrive from "./drive";
-import GoogleTasks from "./tasks";
-import { hashString } from "./helper";
-import { createAuthClient } from "./auth";
+import GoogleCalendar from "./calendar.js";
+import GoogleGmail from "./gmail.js";
+import GoogleDrive from "./drive.js";
+import GoogleTasks from "./tasks.js";
+import { hashString } from "./helper.js";
+import { createAuthClient } from "./auth.js";
 
 export class ClientManager {
   private clients: Map<string, any> = new Map();
