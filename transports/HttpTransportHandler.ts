@@ -1,6 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import http from "http";
+import { randomUUID } from "crypto";
 import { sessionStorage } from "../utils/helper.js";
 
 export interface HttpTransportConfig {
@@ -27,8 +28,9 @@ export class HttpTransportHandler {
         // Capture original end method to log response
         const originalEnd = res.end;
         res.end = function(chunk?: any, encoding?: any, cb?: any) {
-            const sessionId = req.headers?.['mcp-session-id'];
-            console.log(`Session: ${sessionId}. Response: ${req.method} ${req.url} - Status: ${res.statusCode}`);
+            const context = sessionStorage.getStore();
+            const sessionPrefix = context?.sessionId ? `[${context.sessionId}] ` : '';
+            console.log(`${sessionPrefix}Response: ${req.method} ${req.url} - Status: ${res.statusCode}`);
             return originalEnd.call(this, chunk, encoding, cb);
         };
 
@@ -110,7 +112,8 @@ export class HttpTransportHandler {
         }
 
         try {
-            const sessionId = req.headers?.['mcp-session-id'] as string;
+            const sessionId = (req.headers?.['mcp-session-id'] as string) ?? randomUUID();
+            
             await sessionStorage.run({ sessionId }, async () => {
                 await transport.handleRequest(req, res);
             });

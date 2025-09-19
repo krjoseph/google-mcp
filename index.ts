@@ -51,6 +51,8 @@ import {
 import { ClientManager } from "./utils/client-manager.js";
 import { StdioTransportHandler } from "./transports/StdioTransportHandler.js";
 import { HttpTransportHandler, type HttpTransportConfig } from "./transports/HttpTransportHandler.js";
+import { sessionStorage } from "./utils/helper.js";
+
 
 export let MULTIUSER_MODE = false;
 if (process.argv.includes('--multiuser')) {
@@ -100,8 +102,11 @@ server.setRequestHandler(ListToolsRequestSchema, async (request) => {
 
 // Handle the "call tool" request
 server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
+  const sessionContext = sessionStorage.getStore();
+  const sessionPrefix = sessionContext?.sessionId ? `[${sessionContext.sessionId}] ` : '';
+
   const { name, arguments: args } = request.params;
-  console.log(`Calling tool: ${name} with args ${JSON.stringify(args)}`);
+  console.log(`${sessionPrefix}Calling tool: ${name} with args ${JSON.stringify(args)}`);
   
   try {
     const authToken = await extractAuthToken(context?.requestInfo?.headers?.authorization);
