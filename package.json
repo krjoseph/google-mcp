@@ -27,9 +27,6 @@
     "dev": "npx tsx index.ts",
     "test": "bun test"
   },
-  "peerDependencies": {
-    "typescript": "^5.9.2"
-  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.4",
     "date-fns": "^4.1.0",
@@ -40,6 +37,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
-    "@types/sanitize-html": "^2.16.0"
+    "@types/sanitize-html": "^2.16.0",
+    "typescript": "^5.9.2"
   }
 }
