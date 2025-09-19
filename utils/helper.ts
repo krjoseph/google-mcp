@@ -2,8 +2,16 @@
 
 import { createHash } from "crypto";
 import sanitizeHtml from 'sanitize-html';
+import { AsyncLocalStorage } from 'async_hooks';
 
 declare module 'sanitize-html';
+
+// Session context for tracking requests
+interface SessionContext {
+  sessionId?: string;
+}
+
+export const sessionStorage = new AsyncLocalStorage<SessionContext>();
 
 export function isSetDefaultCalendarArgs(
   args: any
@@ -413,16 +421,18 @@ export async function timeApiCall<T>(
   apiCall: () => Promise<T>
 ): Promise<T> {
   const startTime = performance.now();
+  const context = sessionStorage.getStore();
+  const sessionPrefix = context?.sessionId ? `[${context.sessionId}] ` : '';
   try {
     const result = await apiCall();
     const endTime = performance.now();
     const duration = Math.round(endTime - startTime);
-    console.log(`[TIMING] ${apiName}: ${duration}ms`);
+    console.log(`${sessionPrefix}[TIMING] ${apiName}: ${duration}ms`);
     return result as T;
   } catch (error) {
     const endTime = performance.now();
     const duration = Math.round(endTime - startTime);
-    console.log(`[TIMING] ${apiName}: ${duration}ms (failed)`);
+    console.log(`${sessionPrefix}[TIMING] ${apiName}: ${duration}ms (failed)`);
     throw error;
   }
 }

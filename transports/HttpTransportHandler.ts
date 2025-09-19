@@ -1,6 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import http from "http";
+import { sessionStorage } from "../utils/helper.js";
 
 export interface HttpTransportConfig {
   port?: number;
@@ -26,7 +27,8 @@ export class HttpTransportHandler {
         // Capture original end method to log response
         const originalEnd = res.end;
         res.end = function(chunk?: any, encoding?: any, cb?: any) {
-            console.log(`Response: ${req.method} ${req.url} - Status: ${res.statusCode}`);
+            const sessionId = req.headers?.['mcp-session-id'];
+            console.log(`Session: ${sessionId}. Response: ${req.method} ${req.url} - Status: ${res.statusCode}`);
             return originalEnd.call(this, chunk, encoding, cb);
         };
 
@@ -108,7 +110,10 @@ export class HttpTransportHandler {
         }
 
         try {
-            await transport.handleRequest(req, res);
+            const sessionId = req.headers?.['mcp-session-id'] as string;
+            await sessionStorage.run({ sessionId }, async () => {
+                await transport.handleRequest(req, res);
+            });
         } catch (error) {
             console.error(error);
             if (!res.headersSent) {
