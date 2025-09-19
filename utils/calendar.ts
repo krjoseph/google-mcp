@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 import { normalizeToRFC3339 } from "./dateUtils.js";
-import { sanitizeString } from "./helper.js";
+import { sanitizeString, timeApiCall } from "./helper.js";
 
 export default class GoogleCalendar {
   private calendar: any;
@@ -55,11 +55,14 @@ export default class GoogleCalendar {
         requestBody.recurrence = [recurrence];
       }
 
-      const event = await this.calendar.events.insert({
-        calendarId: targetCalendarId,
-        requestBody,
-        sendUpdates: attendees && attendees.length > 0 ? "all" : "none",
-      });
+      const event: any = await timeApiCall(
+        "Calendar.createEvent",
+        () => this.calendar.events.insert({
+          calendarId: targetCalendarId,
+          requestBody,
+          sendUpdates: attendees && attendees.length > 0 ? "all" : "none",
+        })
+      );
 
       return `Event "${summary}" created with ID: ${event.data.id} in calendar: ${targetCalendarId}`;
     } catch (error) {
@@ -98,7 +101,10 @@ export default class GoogleCalendar {
 
       console.log(`Listing calendar events with params ${JSON.stringify(params)}`);
 
-      const res = await this.calendar.events.list(params);
+      const res: any = await timeApiCall(
+        "Calendar.listEvents",
+        () => this.calendar.events.list(params)
+      );
 
       return (
         `Calendar: ${targetCalendarId}\n` +
@@ -123,10 +129,13 @@ export default class GoogleCalendar {
   async getEvent(eventId: string, calendarId?: string) {
     try {
       const targetCalendarId = calendarId || this.defaultCalendarId;
-      const event = await this.calendar.events.get({
-        calendarId: targetCalendarId,
-        eventId: eventId,
-      });
+      const event: any = await timeApiCall(
+        "Calendar.getEvent",
+        () => this.calendar.events.get({
+          calendarId: targetCalendarId,
+          eventId: eventId,
+        })
+      );
 
       const data = event.data;
 
@@ -181,10 +190,13 @@ export default class GoogleCalendar {
       const targetCalendarId = calendarId || this.defaultCalendarId;
 
       // First get the current event
-      const currentEvent = await this.calendar.events.get({
-        calendarId: targetCalendarId,
-        eventId: eventId,
-      });
+      const currentEvent = await timeApiCall(
+        "Calendar.getCurrentEvent",
+        () => this.calendar.events.get({
+          calendarId: targetCalendarId,
+          eventId: eventId,
+        })
+      );
 
       // Prepare updated event object
       const updatedEvent: any = {};
@@ -217,12 +229,15 @@ export default class GoogleCalendar {
       }
 
       // Send the update request
-      const result = await this.calendar.events.patch({
-        calendarId: targetCalendarId,
-        eventId: eventId,
-        requestBody: updatedEvent,
-        sendUpdates: changes.attendees ? "all" : "none",
-      });
+      const result: any = await timeApiCall(
+        "Calendar.updateEvent",
+        () => this.calendar.events.patch({
+          calendarId: targetCalendarId,
+          eventId: eventId,
+          requestBody: updatedEvent,
+          sendUpdates: changes.attendees ? "all" : "none",
+        })
+      );
 
       return `Event updated successfully: "${result.data.summary}"`;
     } catch (error) {
@@ -238,11 +253,14 @@ export default class GoogleCalendar {
     try {
       const targetCalendarId = calendarId || this.defaultCalendarId;
 
-      await this.calendar.events.delete({
-        calendarId: targetCalendarId,
-        eventId: eventId,
-        sendUpdates: "all", // Notify attendees about cancellation
-      });
+      await timeApiCall(
+        "Calendar.deleteEvent",
+        () => this.calendar.events.delete({
+          calendarId: targetCalendarId,
+          eventId: eventId,
+          sendUpdates: "all", // Notify attendees about cancellation
+        })
+      );
 
       return `Event ${eventId} deleted successfully from calendar ${targetCalendarId}`;
     } catch (error) {
@@ -276,7 +294,10 @@ export default class GoogleCalendar {
           orderBy: "startTime",
         };
 
-        const res = await this.calendar.events.list(params);
+        const res: any = await timeApiCall(
+          `Calendar.listEventsForFreeTime.${calId}`,
+          () => this.calendar.events.list(params)
+        );
         allEvents.push(...(res.data.items || []));
       }
 
@@ -357,7 +378,10 @@ export default class GoogleCalendar {
 
   async listCalendars() {
     try {
-      const res = await this.calendar.calendarList.list();
+      const res: any = await timeApiCall(
+        "Calendar.listCalendars",
+        () => this.calendar.calendarList.list()
+      );
       return res.data.items.map((cal: any) => ({
         id: cal.id,
         summary: cal.summary,

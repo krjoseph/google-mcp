@@ -406,3 +406,23 @@ export function sanitizeString(input: string, { allowNewLines = false }: { allow
   const regex = allowNewLines ? /[^\x20-\x7E\n]/g : /[^\x20-\x7E]/g;
   return sanitizeHtml(input).replace(regex, "").trim();
 }
+
+// Timing utility for measuring API call performance
+export async function timeApiCall<T>(
+  apiName: string,
+  apiCall: () => Promise<T>
+): Promise<T> {
+  const startTime = performance.now();
+  try {
+    const result = await apiCall();
+    const endTime = performance.now();
+    const duration = Math.round(endTime - startTime);
+    console.log(`[TIMING] ${apiName}: ${duration}ms`);
+    return result as T;
+  } catch (error) {
+    const endTime = performance.now();
+    const duration = Math.round(endTime - startTime);
+    console.log(`[TIMING] ${apiName}: ${duration}ms (failed)`);
+    throw error;
+  }
+}
