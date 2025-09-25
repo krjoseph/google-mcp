@@ -16,11 +16,18 @@ export class HttpTransportHandler {
     const port = this.config.port ?? parseInt(process.env.PORT || '3000', 10);
     const host = this.config.host ?? '0.0.0.0';
 
+    // Create a single transport instance that will be shared
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true  // Use JSON responses instead of SSE streams
+    });
+
+    await this.server.connect(transport);
+
     const httpServer = http.createServer(async (req, res) => {
         console.log(`Received request: ${req.method} ${req.url}`);
         
         // Set proper HTTP headers for connection management
-        res.setHeader('Connection', 'close'); // Force connection close to prevent keep-alive issues
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         
         // Set up request timeout (25 seconds to be safe with Heroku's 30s limit)
@@ -139,21 +146,9 @@ export class HttpTransportHandler {
         try {
             const sessionId = (req.headers?.['mcp-session-id'] as string) ?? randomUUID();
             
-            // Create a new transport instance for each request to avoid shared state issues
-            const transport = new StreamableHTTPServerTransport({
-                sessionIdGenerator: undefined,
-                enableJsonResponse: true  // Use JSON responses instead of SSE streams
-            });
-            
-            // Connect the server to this transport instance
-            await this.server.connect(transport);
-            
             await sessionStorage.run({ sessionId }, async () => {
                 await transport.handleRequest(req, res);
             });
-            
-            // Clean up the transport connection
-            await transport.close();
             
         } catch (error) {
             clearTimeout(timeout);
