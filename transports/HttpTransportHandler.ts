@@ -17,7 +17,8 @@ export class HttpTransportHandler {
     const host = this.config.host ?? '0.0.0.0';
 
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true  // Use JSON responses instead of SSE streams for better reliability
     });
 
     await this.server.connect(transport);
@@ -25,14 +26,35 @@ export class HttpTransportHandler {
     const httpServer = http.createServer(async (req, res) => {
         console.log(`Received request: ${req.method} ${req.url}`);
         
-        // Capture original end method to log response
+        // Set up request timeout (25 seconds to be safe with Heroku's 30s limit)
+        const timeout = setTimeout(() => {
+            if (!res.headersSent) {
+                console.log(`Request timeout for ${req.method} ${req.url}`);
+                res.writeHead(408, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    jsonrpc: '2.0',
+                    error: {
+                        code: -32000,
+                        message: 'Request timeout',
+                    },
+                    id: null
+                }));
+            }
+        }, 25000); // 25 second timeout
+        
+        // Capture original end method to log response and clear timeout
         const originalEnd = res.end;
         res.end = function(chunk?: any, encoding?: any, cb?: any) {
+            clearTimeout(timeout);
             const context = sessionStorage.getStore();
             const sessionPrefix = context?.sessionId ? `[${context.sessionId}] ` : '';
             console.log(`${sessionPrefix}Response: ${req.method} ${req.url} - Status: ${res.statusCode}`);
             return originalEnd.call(this, chunk, encoding, cb);
         };
+
+        // Clean up timeout on request close/error
+        req.on('close', () => clearTimeout(timeout));
+        req.on('error', () => clearTimeout(timeout));
 
         // Slack does not have a metadata endpoint to discover OAuth2 URLs.
         // So creating a proxy endpoint for the Slack OAuth2 URLs.
@@ -118,7 +140,8 @@ export class HttpTransportHandler {
                 await transport.handleRequest(req, res);
             });
         } catch (error) {
-            console.error(error);
+            clearTimeout(timeout);
+            console.error(`Error handling request ${req.method} ${req.url}:`, error);
             if (!res.headersSent) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
@@ -126,7 +149,8 @@ export class HttpTransportHandler {
                     error: {
                         code: -32603,
                         message: 'Internal server error',
-                    }
+                    },
+                    id: null
                 }));
             }
         }
