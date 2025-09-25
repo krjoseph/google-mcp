@@ -16,15 +16,12 @@ export class HttpTransportHandler {
     const port = this.config.port ?? parseInt(process.env.PORT || '3000', 10);
     const host = this.config.host ?? '0.0.0.0';
 
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true  // Use JSON responses instead of SSE streams for better reliability
-    });
-
-    await this.server.connect(transport);
-
     const httpServer = http.createServer(async (req, res) => {
         console.log(`Received request: ${req.method} ${req.url}`);
+        
+        // Set proper HTTP headers for connection management
+        res.setHeader('Connection', 'close'); // Force connection close to prevent keep-alive issues
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         
         // Set up request timeout (25 seconds to be safe with Heroku's 30s limit)
         const timeout = setTimeout(() => {
@@ -53,8 +50,14 @@ export class HttpTransportHandler {
         };
 
         // Clean up timeout on request close/error
-        req.on('close', () => clearTimeout(timeout));
-        req.on('error', () => clearTimeout(timeout));
+        req.on('close', () => {
+            clearTimeout(timeout);
+            console.log(`Request closed: ${req.method} ${req.url}`);
+        });
+        req.on('error', (error) => {
+            clearTimeout(timeout);
+            console.log(`Request error: ${req.method} ${req.url}`, error.message);
+        });
 
         // Slack does not have a metadata endpoint to discover OAuth2 URLs.
         // So creating a proxy endpoint for the Slack OAuth2 URLs.
@@ -136,9 +139,22 @@ export class HttpTransportHandler {
         try {
             const sessionId = (req.headers?.['mcp-session-id'] as string) ?? randomUUID();
             
+            // Create a new transport instance for each request to avoid shared state issues
+            const transport = new StreamableHTTPServerTransport({
+                sessionIdGenerator: undefined,
+                enableJsonResponse: true  // Use JSON responses instead of SSE streams
+            });
+            
+            // Connect the server to this transport instance
+            await this.server.connect(transport);
+            
             await sessionStorage.run({ sessionId }, async () => {
                 await transport.handleRequest(req, res);
             });
+            
+            // Clean up the transport connection
+            await transport.close();
+            
         } catch (error) {
             clearTimeout(timeout);
             console.error(`Error handling request ${req.method} ${req.url}:`, error);
@@ -156,8 +172,27 @@ export class HttpTransportHandler {
         }
     });
 
+    // Configure server settings for better connection handling
+    httpServer.keepAliveTimeout = 5000; // 5 seconds
+    httpServer.headersTimeout = 6000; // 6 seconds  
+    httpServer.timeout = 30000; // 30 seconds total timeout
+    httpServer.maxHeadersCount = 100;
+    
     httpServer.listen(port, host, () => {
         console.log(`Google MCP Server listening on http://${host}:${port}/mcp`);
+    });
+
+    // Handle server errors
+    httpServer.on('error', (error) => {
+        console.error('HTTP Server error:', error);
+    });
+
+    // Handle client errors
+    httpServer.on('clientError', (error, socket) => {
+        console.error('Client error:', error.message);
+        if (!socket.destroyed) {
+            socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+        }
     });
   }
 } 
