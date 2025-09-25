@@ -3,6 +3,77 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import http from "http";
 import { randomUUID } from "crypto";
 import { sessionStorage } from "../utils/helper.js";
+import { LRUCache } from "lru-cache";
+
+interface CachedTransport {
+  transport: StreamableHTTPServerTransport;
+  id: string;
+  createdAt: number;
+}
+
+class TransportCache {
+  private cache: LRUCache<string, CachedTransport>;
+
+  constructor() {
+    this.cache = new LRUCache<string, CachedTransport>({
+      max: 100, // Maximum number of transports to cache
+      ttl: 30000, // 30 seconds TTL
+      dispose: async (value: CachedTransport) => {
+        // Called when transport is evicted from cache
+        console.log(`Disposing transport ${value.id} from cache`);
+        try {
+          await value.transport.close();
+        } catch (error) {
+          console.error(`Error closing transport ${value.id}:`, error);
+        }
+      },
+      updateAgeOnGet: false, // Don't reset TTL on access
+    });
+  }
+
+  async getTransport(originalServer: Server): Promise<CachedTransport> {
+    // Create a new transport for each request
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true
+    });
+
+    // Create a new server instance for each transport to avoid conflicts
+    const server = new Server(
+      { name: "Google MCP Server", version: "0.0.1" },
+      { capabilities: { tools: {} } }
+    );
+
+    // Copy request handlers from original server
+    const mainServer = originalServer as any;
+    if (mainServer._requestHandlers) {
+      // Create a new Map to avoid reference issues
+      const handlerMap = new Map(mainServer._requestHandlers);
+      (server as any)._requestHandlers = handlerMap;
+      console.log(`Copied ${handlerMap.size} request handlers to isolated server`);
+    }
+
+    const cachedTransport: CachedTransport = {
+      transport,
+      id: randomUUID(),
+      createdAt: Date.now()
+    };
+
+    // Connect the new server instance to transport
+    await server.connect(transport);
+    
+    // Store in cache with TTL
+    this.cache.set(cachedTransport.id, cachedTransport);
+    
+    console.log(`Created and cached transport ${cachedTransport.id} with isolated server`);
+    return cachedTransport;
+  }
+
+  async destroy() {
+    console.log('Destroying transport cache');
+    this.cache.clear(); // This will trigger dispose for all cached transports
+  }
+}
 
 export interface HttpTransportConfig {
   port?: number;
@@ -10,25 +81,24 @@ export interface HttpTransportConfig {
 }
 
 export class HttpTransportHandler {
-  constructor(private server: Server, private config: HttpTransportConfig = {}) {}
+  private transportCache: TransportCache;
+
+  constructor(private server: Server, private config: HttpTransportConfig = {}) {
+    this.transportCache = new TransportCache();
+  }
 
   async connect(): Promise<void> {
     const port = this.config.port ?? parseInt(process.env.PORT || '3000', 10);
     const host = this.config.host ?? '0.0.0.0';
-
-    // Create a single transport instance that will be shared
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true  // Use JSON responses instead of SSE streams
-    });
-
-    await this.server.connect(transport);
 
     const httpServer = http.createServer(async (req, res) => {
         console.log(`Received request: ${req.method} ${req.url}`);
         
         // Set proper HTTP headers for connection management
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        
+        // Capture handler reference for use in closures
+        const handler = this;
         
         // Set up request timeout (25 seconds to be safe with Heroku's 30s limit)
         const timeout = setTimeout(() => {
@@ -45,7 +115,7 @@ export class HttpTransportHandler {
                 }));
             }
         }, 25000); // 25 second timeout
-        
+
         // Capture original end method to log response and clear timeout
         const originalEnd = res.end;
         res.end = function(chunk?: any, encoding?: any, cb?: any) {
@@ -66,9 +136,6 @@ export class HttpTransportHandler {
             console.log(`Request error: ${req.method} ${req.url}`, error.message);
         });
 
-        // Slack does not have a metadata endpoint to discover OAuth2 URLs.
-        // So creating a proxy endpoint for the Slack OAuth2 URLs.
-        // This is used by the Keyring to discover the OAuth2 URLs.
         if (req.method === 'GET' && req.url === '/.well-known/openid-configuration') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
@@ -146,13 +213,20 @@ export class HttpTransportHandler {
         try {
             const sessionId = (req.headers?.['mcp-session-id'] as string) ?? randomUUID();
             
-            await sessionStorage.run({ sessionId }, async () => {
-                await transport.handleRequest(req, res);
-            });
+            // Get a transport from cache (creates new one with TTL)
+            console.log(`[${sessionId}] Getting transport from cache`);
+            const cachedTransport = await handler.transportCache.getTransport(this.server);
+            console.log(`[${sessionId}] Using cached transport ${cachedTransport.id}`);
             
+            await sessionStorage.run({ sessionId }, async () => {
+                console.log(`[${sessionId}] Handling request through cached transport`);
+                await cachedTransport.transport.handleRequest(req, res);
+                console.log(`[${sessionId}] Transport handleRequest completed`);
+            });
         } catch (error) {
             clearTimeout(timeout);
             console.error(`Error handling request ${req.method} ${req.url}:`, error);
+            
             if (!res.headersSent) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
@@ -189,5 +263,9 @@ export class HttpTransportHandler {
             socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
         }
     });
+  }
+
+  async destroy() {
+    await this.transportCache.destroy();
   }
 } 
