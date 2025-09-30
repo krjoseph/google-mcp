@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { timeApiCall } from "./helper.js";
 
 export default class GoogleTasks {
   private tasks: any;
@@ -16,9 +17,12 @@ export default class GoogleTasks {
 
   async listTaskLists() {
     try {
-      const response = await this.tasks.tasklists.list({
-        maxResults: 100,
-      });
+      const response: any = await timeApiCall(
+        "Tasks.listTaskLists",
+        () => this.tasks.tasklists.list({
+          maxResults: 100,
+        })
+      );
 
       if (!response.data.items || response.data.items.length === 0) {
         return "No task lists found.";
@@ -39,11 +43,14 @@ export default class GoogleTasks {
   async listTasks(taskListId?: string, showCompleted: boolean = false) {
     try {
       const targetTaskList = taskListId || this.defaultTaskList;
-      const response = await this.tasks.tasks.list({
-        tasklist: targetTaskList,
-        showCompleted: showCompleted,
-        maxResults: 100,
-      });
+      const response: any = await timeApiCall(
+        "Tasks.listTasks",
+        () => this.tasks.tasks.list({
+          tasklist: targetTaskList,
+          showCompleted: showCompleted,
+          maxResults: 100,
+        })
+      );
 
       if (!response.data.items || response.data.items.length === 0) {
         return `No tasks found in task list: ${targetTaskList}`;
@@ -79,10 +86,13 @@ ${task.notes ? `Notes: ${task.notes}` : ""}`;
   async getTask(taskId: string, taskListId?: string) {
     try {
       const targetTaskList = taskListId || this.defaultTaskList;
-      const response = await this.tasks.tasks.get({
-        tasklist: targetTaskList,
-        task: taskId,
-      });
+      const response: any = await timeApiCall(
+        "Tasks.getTask",
+        () => this.tasks.tasks.get({
+          tasklist: targetTaskList,
+          task: taskId,
+        })
+      );
 
       const task = response.data;
       const due = task.due ? `Due: ${new Date(task.due).toLocaleString()}` : "";
@@ -123,10 +133,13 @@ ${task.notes ? `Notes: ${task.notes}` : ""}`;
       if (notes) taskData.notes = notes;
       if (due) taskData.due = due;
 
-      const response = await this.tasks.tasks.insert({
-        tasklist: targetTaskList,
-        requestBody: taskData,
-      });
+      const response: any = await timeApiCall(
+        "Tasks.createTask",
+        () => this.tasks.tasks.insert({
+          tasklist: targetTaskList,
+          requestBody: taskData,
+        })
+      );
 
       return `Task created: "${response.data.title}" with ID: ${response.data.id}`;
     } catch (error) {
@@ -152,10 +165,13 @@ ${task.notes ? `Notes: ${task.notes}` : ""}`;
       const targetTaskList = taskListId || this.defaultTaskList;
 
       // Get current task data
-      const currentTask = await this.tasks.tasks.get({
-        tasklist: targetTaskList,
-        task: taskId,
-      });
+      const currentTask: any = await timeApiCall(
+        "Tasks.getCurrentTask",
+        () => this.tasks.tasks.get({
+          tasklist: targetTaskList,
+          task: taskId,
+        })
+      );
 
       // Prepare updated task data
       const updatedTask = { ...currentTask.data };
@@ -165,11 +181,14 @@ ${task.notes ? `Notes: ${task.notes}` : ""}`;
       if (data.due !== undefined) updatedTask.due = data.due;
       if (data.status !== undefined) updatedTask.status = data.status;
 
-      const response = await this.tasks.tasks.update({
-        tasklist: targetTaskList,
-        task: taskId,
-        requestBody: updatedTask,
-      });
+      const response: any = await timeApiCall(
+        "Tasks.updateTask",
+        () => this.tasks.tasks.update({
+          tasklist: targetTaskList,
+          task: taskId,
+          requestBody: updatedTask,
+        })
+      );
 
       return `Task updated: "${response.data.title}" with ID: ${response.data.id}`;
     } catch (error) {
@@ -201,10 +220,13 @@ ${task.notes ? `Notes: ${task.notes}` : ""}`;
     try {
       const targetTaskList = taskListId || this.defaultTaskList;
 
-      await this.tasks.tasks.delete({
-        tasklist: targetTaskList,
-        task: taskId,
-      });
+      await timeApiCall(
+        "Tasks.deleteTask",
+        () => this.tasks.tasks.delete({
+          tasklist: targetTaskList,
+          task: taskId,
+        })
+      );
 
       return `Task ${taskId} deleted from task list ${targetTaskList}.`;
     } catch (error) {
@@ -218,11 +240,14 @@ ${task.notes ? `Notes: ${task.notes}` : ""}`;
 
   async createTaskList(title: string) {
     try {
-      const response = await this.tasks.tasklists.insert({
-        requestBody: {
-          title: title,
-        },
-      });
+      const response: any = await timeApiCall(
+        "Tasks.createTaskList",
+        () => this.tasks.tasklists.insert({
+          requestBody: {
+            title: title,
+          },
+        })
+      );
 
       return `Task list created: "${response.data.title}" with ID: ${response.data.id}`;
     } catch (error) {
@@ -236,9 +261,12 @@ ${task.notes ? `Notes: ${task.notes}` : ""}`;
 
   async deleteTaskList(taskListId: string) {
     try {
-      await this.tasks.tasklists.delete({
-        tasklist: taskListId,
-      });
+      await timeApiCall(
+        "Tasks.deleteTaskList",
+        () => this.tasks.tasklists.delete({
+          tasklist: taskListId,
+        })
+      );
 
       return `Task list ${taskListId} deleted.`;
     } catch (error) {

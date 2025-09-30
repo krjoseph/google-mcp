@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { sanitizeString } from "./helper.js";
+import { sanitizeString, timeApiCall } from "./helper.js";
 
 export default class GoogleGmail {
   private gmail: any;
@@ -11,9 +11,12 @@ export default class GoogleGmail {
 
   async listLabels() {
     try {
-      const response = await this.gmail.users.labels.list({
-        userId: "me",
-      });
+      const response: any = await timeApiCall(
+        "Gmail.listLabels",
+        () => this.gmail.users.labels.list({
+          userId: "me",
+        })
+      );
 
       return response.data.labels.map((label: any) => ({
         id: label.id,
@@ -35,12 +38,15 @@ export default class GoogleGmail {
     query?: string
   ) {
     try {
-      const response = await this.gmail.users.messages.list({
-        userId: "me",
-        labelIds: labelIds,
-        maxResults: maxResults,
-        q: query,
-      });
+      const response: any = await timeApiCall(
+        "Gmail.listMessages",
+        () => this.gmail.users.messages.list({
+          userId: "me",
+          labelIds: labelIds,
+          maxResults: maxResults,
+          q: query,
+        })
+      );
 
       if (!response.data.messages || response.data.messages.length === 0) {
         this.recentEmails = [];
@@ -52,12 +58,15 @@ export default class GoogleGmail {
       this.recentEmails = []; // Clear previous results
 
       for (const message of response.data.messages) {
-        const msgDetails = await this.gmail.users.messages.get({
-          userId: "me",
-          id: message.id,
-          format: "metadata",
-          metadataHeaders: ["Subject", "From", "Date"],
-        });
+        const msgDetails: any = await timeApiCall(
+          `Gmail.getMessageMetadata.${message.id}`,
+          () => this.gmail.users.messages.get({
+            userId: "me",
+            id: message.id,
+            format: "metadata",
+            metadataHeaders: ["Subject", "From", "Date"],
+          })
+        );
 
         const headers = msgDetails.data.payload.headers;
         const subject =
@@ -110,11 +119,14 @@ export default class GoogleGmail {
 
   async getEmail(messageId: string, format: string = "full") {
     try {
-      const response = await this.gmail.users.messages.get({
-        userId: "me",
-        id: messageId,
-        format: format,
-      });
+      const response: any = await timeApiCall(
+        "Gmail.getMessage",
+        () => this.gmail.users.messages.get({
+          userId: "me",
+          id: messageId,
+          format: format,
+        })
+      );
 
       const { payload, snippet, labelIds } = response.data;
       const headers = payload.headers;
@@ -201,12 +213,15 @@ export default class GoogleGmail {
         .replace(/=+$/, "");
 
       // Send the email
-      const res = await this.gmail.users.messages.send({
-        userId: "me",
-        requestBody: {
-          raw: encodedEmail,
-        },
-      });
+      const res: any = await timeApiCall(
+        "Gmail.sendMessage",
+        () => this.gmail.users.messages.send({
+          userId: "me",
+          requestBody: {
+            raw: encodedEmail,
+          },
+        })
+      );
 
       return `Email sent successfully. Message ID: ${res.data.id}`;
     } catch (error) {
@@ -255,14 +270,17 @@ export default class GoogleGmail {
         .replace(/=+$/, "");
 
       // Create the draft
-      const res = await this.gmail.users.drafts.create({
-        userId: "me",
-        requestBody: {
-          message: {
-            raw: encodedEmail,
+      const res: any = await timeApiCall(
+        "Gmail.createDraft",
+        () => this.gmail.users.drafts.create({
+          userId: "me",
+          requestBody: {
+            message: {
+              raw: encodedEmail,
+            },
           },
-        },
-      });
+        })
+      );
 
       return `Draft created successfully. Draft ID: ${res.data.id}`;
     } catch (error) {
@@ -277,16 +295,22 @@ export default class GoogleGmail {
   async deleteEmail(messageId: string, permanently: boolean = false) {
     try {
       if (permanently) {
-        await this.gmail.users.messages.delete({
-          userId: "me",
-          id: messageId,
-        });
+        await timeApiCall(
+          "Gmail.deleteMessage",
+          () => this.gmail.users.messages.delete({
+            userId: "me",
+            id: messageId,
+          })
+        );
         return `Message ${messageId} permanently deleted.`;
       } else {
-        await this.gmail.users.messages.trash({
-          userId: "me",
-          id: messageId,
-        });
+        await timeApiCall(
+          "Gmail.trashMessage",
+          () => this.gmail.users.messages.trash({
+            userId: "me",
+            id: messageId,
+          })
+        );
         return `Message ${messageId} moved to trash.`;
       }
     } catch (error) {
@@ -304,14 +328,17 @@ export default class GoogleGmail {
     removeLabelIds?: string[]
   ) {
     try {
-      await this.gmail.users.messages.modify({
-        userId: "me",
-        id: messageId,
-        requestBody: {
-          addLabelIds: addLabelIds || [],
-          removeLabelIds: removeLabelIds || [],
-        },
-      });
+      await timeApiCall(
+        "Gmail.modifyLabels",
+        () => this.gmail.users.messages.modify({
+          userId: "me",
+          id: messageId,
+          requestBody: {
+            addLabelIds: addLabelIds || [],
+            removeLabelIds: removeLabelIds || [],
+          },
+        })
+      );
 
       let result = `Successfully modified labels for message ${messageId}.`;
       if (addLabelIds && addLabelIds.length > 0) {

@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { timeApiCall } from "./helper.js";
 
 export interface ListOfDocuments {
       name: string;
@@ -21,14 +22,17 @@ export default class GoogleDrive {
     fields?: string
   ): Promise<ListOfDocuments[]> {
     try {
-      const response = await this.drive.files.list({
-        q: query || "trashed = false",
-        pageSize: pageSize,
-        orderBy: orderBy || "modifiedTime desc",
-        fields:
-          fields ||
-          "files(id, name, mimeType, modifiedTime, size, webViewLink)",
-      });
+      const response: any = await timeApiCall(
+        "Drive.listFiles",
+        () => this.drive.files.list({
+          q: query || "trashed = false",
+          pageSize: pageSize,
+          orderBy: orderBy || "modifiedTime desc",
+          fields:
+            fields ||
+            "files(id, name, mimeType, modifiedTime, size, webViewLink)",
+        })
+      );
 
       if (!response.data.files || response.data.files.length === 0) {
         return [];
@@ -54,10 +58,13 @@ export default class GoogleDrive {
   async getFileContent(fileId: string) {
     try {
       // First get the file metadata to check its type
-      const fileMetadata = await this.drive.files.get({
-        fileId: fileId,
-        fields: "name,mimeType",
-      });
+      const fileMetadata: any = await timeApiCall(
+        "Drive.getFileMetadata",
+        () => this.drive.files.get({
+          fileId: fileId,
+          fields: "name,mimeType",
+        })
+      );
 
       const { name, mimeType } = fileMetadata.data;
 
@@ -68,10 +75,13 @@ export default class GoogleDrive {
         mimeType.includes("text/") ||
         mimeType.includes("application/javascript")
       ) {
-        const response = await this.drive.files.get({
-          fileId: fileId,
-          alt: "media",
-        });
+        const response: any = await timeApiCall(
+          "Drive.getFileContent",
+          () => this.drive.files.get({
+            fileId: fileId,
+            alt: "media",
+          })
+        );
 
         return `File: ${name}\nContent:\n\n${response.data}`;
       }
@@ -86,10 +96,13 @@ export default class GoogleDrive {
           exportMimeType = "text/csv";
         }
 
-        const response = await this.drive.files.export({
-          fileId: fileId,
-          mimeType: exportMimeType,
-        });
+        const response: any = await timeApiCall(
+          "Drive.exportFile",
+          () => this.drive.files.export({
+            fileId: fileId,
+            mimeType: exportMimeType,
+          })
+        );
 
         return `File: ${name}\nContent (exported as ${exportMimeType}):\n\n${response.data}`;
       }
@@ -125,25 +138,31 @@ export default class GoogleDrive {
 
       // If creating a Google Doc, Spreadsheet, etc.
       if (mimeType.includes("application/vnd.google-apps")) {
-        const response = await this.drive.files.create({
-          requestBody: fileMetadata,
-          fields: "id,name,webViewLink",
-          mimeType: mimeType,
-        });
+        const response: any = await timeApiCall(
+          "Drive.createGoogleAppsFile",
+          () => this.drive.files.create({
+            requestBody: fileMetadata,
+            fields: "id,name,webViewLink",
+            mimeType: mimeType,
+          })
+        );
 
         const { id, webViewLink } = response.data;
         return `Created ${mimeType} with name: ${name}\nID: ${id}\nLink: ${webViewLink}`;
       }
 
       // For regular files with content
-      const response = await this.drive.files.create({
-        requestBody: fileMetadata,
-        media: {
-          mimeType: mimeType,
-          body: content,
-        },
-        fields: "id,name,webViewLink",
-      });
+      const response: any = await timeApiCall(
+        "Drive.createFile",
+        () => this.drive.files.create({
+          requestBody: fileMetadata,
+          media: {
+            mimeType: mimeType,
+            body: content,
+          },
+          fields: "id,name,webViewLink",
+        })
+      );
 
       const { id, webViewLink } = response.data;
       return `Created file with name: ${name}\nID: ${id}\nLink: ${
@@ -161,10 +180,13 @@ export default class GoogleDrive {
   async updateFile(fileId: string, content: string, mimeType?: string) {
     try {
       // First get the file metadata to verify its type
-      const fileMetadata = await this.drive.files.get({
-        fileId: fileId,
-        fields: "name,mimeType",
-      });
+      const fileMetadata: any = await timeApiCall(
+        "Drive.getFileMetadataForUpdate",
+        () => this.drive.files.get({
+          fileId: fileId,
+          fields: "name,mimeType",
+        })
+      );
 
       const { mimeType: fileMimeType } = fileMetadata.data;
 
@@ -178,14 +200,17 @@ export default class GoogleDrive {
       }
 
       // Update regular file content
-      const response = await this.drive.files.update({
-        fileId: fileId,
-        media: {
-          mimeType: mimeType || fileMimeType,
-          body: content,
-        },
-        fields: "id,name",
-      });
+      const response: any = await timeApiCall(
+        "Drive.updateFile",
+        () => this.drive.files.update({
+          fileId: fileId,
+          media: {
+            mimeType: mimeType || fileMimeType,
+            body: content,
+          },
+          fields: "id,name",
+        })
+      );
 
       return `File '${response.data.name}' updated successfully.`;
     } catch (error) {
@@ -200,17 +225,23 @@ export default class GoogleDrive {
   async deleteFile(fileId: string, permanently: boolean = false) {
     try {
       if (permanently) {
-        await this.drive.files.delete({
-          fileId: fileId,
-        });
+        await timeApiCall(
+          "Drive.deleteFilePermanently",
+          () => this.drive.files.delete({
+            fileId: fileId,
+          })
+        );
         return `File with ID ${fileId} permanently deleted.`;
       } else {
-        await this.drive.files.update({
-          fileId: fileId,
-          requestBody: {
-            trashed: true,
-          },
-        });
+        await timeApiCall(
+          "Drive.trashFile",
+          () => this.drive.files.update({
+            fileId: fileId,
+            requestBody: {
+              trashed: true,
+            },
+          })
+        );
         return `File with ID ${fileId} moved to trash.`;
       }
     } catch (error) {
@@ -230,22 +261,28 @@ export default class GoogleDrive {
     message?: string
   ) {
     try {
-      const response = await this.drive.permissions.create({
-        fileId: fileId,
-        requestBody: {
-          type: "user",
-          role: role,
-          emailAddress: emailAddress,
-        },
-        sendNotificationEmail: sendNotification,
-        emailMessage: message,
-      });
+      const response: any = await timeApiCall(
+        "Drive.createPermission",
+        () => this.drive.permissions.create({
+          fileId: fileId,
+          requestBody: {
+            type: "user",
+            role: role,
+            emailAddress: emailAddress,
+          },
+          sendNotificationEmail: sendNotification,
+          emailMessage: message,
+        })
+      );
 
       // Get the file name
-      const fileMetadata = await this.drive.files.get({
-        fileId: fileId,
-        fields: "name",
-      });
+      const fileMetadata: any = await timeApiCall(
+        "Drive.getFileNameForShare",
+        () => this.drive.files.get({
+          fileId: fileId,
+          fields: "name",
+        })
+      );
 
       return `File '${fileMetadata.data.name}' shared with ${emailAddress} as ${role}.`;
     } catch (error) {

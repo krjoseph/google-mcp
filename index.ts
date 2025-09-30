@@ -51,6 +51,8 @@ import {
 import { ClientManager } from "./utils/client-manager.js";
 import { StdioTransportHandler } from "./transports/StdioTransportHandler.js";
 import { HttpTransportHandler, type HttpTransportConfig } from "./transports/HttpTransportHandler.js";
+import { sessionStorage } from "./utils/helper.js";
+
 
 export let MULTIUSER_MODE = false;
 if (process.argv.includes('--multiuser')) {
@@ -100,6 +102,12 @@ server.setRequestHandler(ListToolsRequestSchema, async (request) => {
 
 // Handle the "call tool" request
 server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
+  const sessionContext = sessionStorage.getStore();
+  const sessionPrefix = sessionContext?.sessionId ? `[${sessionContext.sessionId}] ` : '';
+
+  const { name, arguments: args } = request.params;
+  console.log(`${sessionPrefix}Calling tool: ${name} with args ${JSON.stringify(args)}`);
+  
   try {
     const authToken = await extractAuthToken(context?.requestInfo?.headers?.authorization);
 
@@ -116,10 +124,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
       }
     }
 
-    const { name, arguments: args } = request.params;
     if (!args) throw new Error("No arguments provided");
-
-    console.log(`Calling tool: ${name} with args ${JSON.stringify(args)}`);
 
     switch (name) {
       // Calendar tools handlers
@@ -128,9 +133,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
           throw new Error("Invalid arguments for google_calendar_set_default");
         }
         const { calendarId } = args;
-        const result = (await clientManager.getGoogleCalendarInstance(authToken)).setDefaultCalendarId(calendarId);
+        const toolResult = (await clientManager.getGoogleCalendarInstance(authToken)).setDefaultCalendarId(calendarId);
         return {
-          content: [{ type: "text", text: result }],
+          content: [{ type: "text", text: toolResult }],
           isError: false,
         };
       }
@@ -692,7 +697,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
           isError: false,
         };
       }
-
       default:
         return {
           content: [{ type: "text", text: `Unknown tool: ${name}` }],
@@ -700,19 +704,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
         };
     }
   } catch (error) {
-    console.error(error);
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        },
-      ],
-      isError: true,
-    };
-  }
+      console.log(`Tool '${name}' with args ${JSON.stringify(args)} execution failed`);
+      console.error(error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          },
+        ],
+        isError: true,
+      };
+    }
 });
 
 export default async function startServer() {
