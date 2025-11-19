@@ -24,7 +24,7 @@ export default class GoogleDrive {
     pageSize: number = 10,
     orderBy?: string,
     fields?: string
-  ): Promise<ListOfDocuments[]> {
+  ) {
     try {
       const response: any = await timeApiCall(
         "Drive.listFiles",
@@ -39,18 +39,19 @@ export default class GoogleDrive {
       );
 
       if (!response.data.files || response.data.files.length === 0) {
-        return [];
+        return "No files found.";
       }
 
-      return response.data.files.map((file: any) => (
-        {
-          id: file.id,
-          name: file.name,
-          type: file.mimeType,
-          link: file.webViewLink,
-          size: file.size,
-        }
-      ));
+      return response.data.files
+        .map((file: any) => {
+          const size = file.size
+            ? `${(parseInt(file.size) / 1024).toFixed(2)} KB`
+            : "N/A";
+          return `${file.name} (${file.mimeType})\nID: ${file.id}\nModified: ${
+            file.modifiedTime
+          }\nSize: ${size}\nLink: ${file.webViewLink || "N/A"}`;
+        })
+        .join("\n\n---\n\n");
     } catch (error) {
       throw new Error(
         `Failed to list files: ${
