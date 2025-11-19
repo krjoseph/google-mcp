@@ -521,10 +521,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
         if (!isAppendToFileArgs(args)) {
           throw new Error("Invalid arguments for google_drive_append_to_file");
         }
-        const { fileId, content } = args;
+        const { fileId, content, mimeType } = args;
         const result = await (await clientManager.getGoogleDriveInstance(authToken)).appendToFile(
           fileId,
-          content
+          content,
+          mimeType
         );
         return {
           content: [{ type: "text", text: result }],

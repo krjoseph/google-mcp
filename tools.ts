@@ -538,6 +538,10 @@ export const APPEND_TO_FILE_TOOL: Tool = {
         type: "string",
         description: "Content to append to the file",
       },
+      mimeType: {
+        type: "string",
+        description: "MIME type of the provided content. Specify text/markdown for markdown content.",
+      },
     },
     required: ["fileId", "content"],
   },

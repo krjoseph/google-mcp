@@ -219,7 +219,7 @@ export default class GoogleDrive {
     }
   }
 
-  async appendToFile(fileId: string, content: string) {
+  async appendToFile(fileId: string, content: string, mimeType?: string) {
     try {
       // First get the file metadata to verify its type
       const fileMetadata: any = await timeApiCall(
@@ -234,21 +234,55 @@ export default class GoogleDrive {
 
       // Handle Google Docs
       if (fileMimeType === "application/vnd.google-apps.document") {
+        // Get the document to find the end index
+        const doc: any = await timeApiCall(
+          "Docs.getDocument",
+          () => this.docs.documents.get({
+            documentId: fileId,
+          })
+        );
+
+        const endIndex = doc.data.body.content[doc.data.body.content.length - 1].endIndex - 1;
+
+        const requests: any[] = [
+          {
+            insertText: {
+              text: content,
+              endOfSegmentLocation: {
+                segmentId: "",
+              },
+            },
+          },
+        ];
+
+        // If mimeType is markdown, apply code block styling
+        if (mimeType === 'text/markdown') {
+          requests.push({
+            updateTextStyle: {
+              range: {
+                startIndex: endIndex,
+                endIndex: endIndex + content.length,
+              },
+              textStyle: {
+                weightedFontFamily: {
+                  fontFamily: "Courier New",
+                },
+                fontSize: {
+                  magnitude: 10,
+                  unit: "PT",
+                },
+              },
+              fields: "weightedFontFamily,fontSize",
+            },
+          });
+        }
+
         const response: any = await timeApiCall(
           "Docs.appendToDocument",
           () => this.docs.documents.batchUpdate({
             documentId: fileId,
             requestBody: {
-              requests: [
-                {
-                  insertText: {
-                    text: content,
-                    endOfSegmentLocation: {
-                      segmentId: "",
-                    },
-                  },
-                },
-              ],
+              requests: requests,
             },
           })
         );
