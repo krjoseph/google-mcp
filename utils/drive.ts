@@ -42,16 +42,7 @@ export default class GoogleDrive {
         return "No files found.";
       }
 
-      return response.data.files
-        .map((file: any) => {
-          const size = file.size
-            ? `${(parseInt(file.size) / 1024).toFixed(2)} KB`
-            : "N/A";
-          return `${file.name} (${file.mimeType})\nID: ${file.id}\nModified: ${
-            file.modifiedTime
-          }\nSize: ${size}\nLink: ${file.webViewLink || "N/A"}`;
-        })
-        .join("\n\n---\n\n");
+      return JSON.stringify(response.data.files);
     } catch (error) {
       throw new Error(
         `Failed to list files: ${
