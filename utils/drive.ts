@@ -10,9 +10,13 @@ export interface ListOfDocuments {
 
 export default class GoogleDrive {
   private drive: any;
+  private docs: any;
+  private sheets: any;
 
   constructor(authClient: any) {
     this.drive = google.drive({ version: "v3", auth: authClient });
+    this.docs = google.docs({ version: "v1", auth: authClient });
+    this.sheets = google.sheets({ version: "v4", auth: authClient });
   }
 
   async listFiles(
@@ -40,6 +44,7 @@ export default class GoogleDrive {
 
       return response.data.files.map((file: any) => (
         {
+          id: file.id,
           name: file.name,
           type: file.mimeType,
           link: file.webViewLink,
@@ -207,6 +212,108 @@ export default class GoogleDrive {
           media: {
             mimeType: mimeType || fileMimeType,
             body: content,
+          },
+          fields: "id,name",
+        })
+      );
+
+      return `File '${response.data.name}' updated successfully.`;
+    } catch (error) {
+      throw new Error(
+        `Failed to update file: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  async appendToFile(fileId: string, content: string) {
+    try {
+      // First get the file metadata to verify its type
+      const fileMetadata: any = await timeApiCall(
+        "Drive.getFileMetadataForAppend",
+        () => this.drive.files.get({
+          fileId: fileId,
+          fields: "name,mimeType",
+        })
+      );
+
+      const { name: fileName, mimeType: fileMimeType } = fileMetadata.data;
+
+      // Handle Google Docs
+      if (fileMimeType === "application/vnd.google-apps.document") {
+        const response: any = await timeApiCall(
+          "Docs.appendToDocument",
+          () => this.docs.documents.batchUpdate({
+            documentId: fileId,
+            requestBody: {
+              requests: [
+                {
+                  insertText: {
+                    text: content,
+                    endOfSegmentLocation: {
+                      segmentId: "",
+                    },
+                  },
+                },
+              ],
+            },
+          })
+        );
+
+        return `Content appended to Google Doc '${fileName}' successfully.`;
+      }
+
+      // Handle Google Sheets
+      if (fileMimeType === "application/vnd.google-apps.spreadsheet") {
+        // Split content by lines to append as rows
+        const lines = content.split("\n").filter(line => line.trim() !== "");
+        const values = lines.map(line => [line]);
+
+        const response: any = await timeApiCall(
+          "Sheets.appendToSpreadsheet",
+          () => this.sheets.spreadsheets.values.append({
+            spreadsheetId: fileId,
+            range: "A1",
+            valueInputOption: "RAW",
+            requestBody: {
+              values: values,
+            },
+          })
+        );
+
+        return `${lines.length} row(s) appended to Google Sheet '${fileName}' successfully.`;
+      }
+
+      // Handle other Google Apps files
+      if (fileMimeType.includes("application/vnd.google-apps")) {
+        throw new Error(
+          `Appending to Google ${fileMimeType
+            .split(".")
+            .pop()} is not supported. Only Google Docs and Sheets are supported.`
+        );
+      }
+
+      // Read the existing file content
+      const existingContent: any = await timeApiCall(
+        "Drive.getFileContent",
+        () => this.drive.files.get({
+          fileId: fileId,
+          alt: "media",
+        })
+      );
+
+      // Append new content to existing content
+      const combinedContent = existingContent.data + content;
+
+      // Update file with combined content
+      const response: any = await timeApiCall(
+        "Drive.updateFile",
+        () => this.drive.files.update({
+          fileId: fileId,
+          media: {
+            mimeType: fileMimeType,
+            body: combinedContent,
           },
           fields: "id,name",
         })

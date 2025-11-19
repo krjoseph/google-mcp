@@ -19,11 +19,11 @@ if [ ! -f Procfile ]; then
     echo "Created Procfile."
 fi
 
-# Set Heroku remote to existing app 'google-mcp'
-heroku git:remote -a google-mcp
+# Set Heroku remote to existing app 'google-mcp-dev'
+heroku git:remote -a google-mcp-dev
 
 # Ensure Node.js buildpack is set
-heroku buildpacks:set heroku/nodejs -a google-mcp || true
+heroku buildpacks:set heroku/nodejs -a google-mcp-dev || true
 
 # Commit Procfile if needed
 if [ -n "$(git status --porcelain Procfile)" ]; then
@@ -38,9 +38,9 @@ if [ -n "$(git status --porcelain package.json)" ]; then
 fi
 
 # Set the branch to deploy
-BRANCH_TO_DEPLOY="time-google-api-calls"
+BRANCH_TO_DEPLOY="google_drive-append_to_file"
 
 # Push to Heroku
 git push heroku $BRANCH_TO_DEPLOY:main
 
-echo "Deployment to Heroku app 'google-mcp' initiated."
+echo "Deployment to Heroku app 'google-mcp-dev' initiated."

@@ -524,6 +524,25 @@ export const UPDATE_FILE_TOOL: Tool = {
   },
 };
 
+export const APPEND_TO_FILE_TOOL: Tool = {
+  name: "google_drive_append_to_file",
+  description: "Append content to an existing file in Google Drive",
+  inputSchema: {
+    type: "object",
+    properties: {
+      fileId: {
+        type: "string",
+        description: "ID of the file to append to",
+      },
+      content: {
+        type: "string",
+        description: "Content to append to the file",
+      },
+    },
+    required: ["fileId", "content"],
+  },
+};
+
 export const DELETE_FILE_TOOL: Tool = {
   name: "google_drive_delete_file",
   description: "Delete a file from Google Drive",
@@ -832,6 +851,7 @@ export const toolsPerScope = {
     GET_FILE_CONTENT_TOOL,
     CREATE_FILE_TOOL,
     UPDATE_FILE_TOOL,
+    APPEND_TO_FILE_TOOL,
     DELETE_FILE_TOOL,
     SHARE_FILE_TOOL,
   ],
@@ -880,6 +900,7 @@ const tools = [
   GET_FILE_CONTENT_TOOL,
   CREATE_FILE_TOOL,
   UPDATE_FILE_TOOL,
+  APPEND_TO_FILE_TOOL,
   DELETE_FILE_TOOL,
   SHARE_FILE_TOOL,
 

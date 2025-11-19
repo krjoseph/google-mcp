@@ -275,6 +275,13 @@ export function isUpdateFileArgs(args: any): args is {
   );
 }
 
+export function isAppendToFileArgs(args: any): args is {
+  fileId: string;
+  content: string;
+} {
+  return args && typeof args.fileId === "string" && typeof args.content === "string";
+}
+
 export function isDeleteFileArgs(args: any): args is {
   fileId: string;
   permanently?: boolean;
