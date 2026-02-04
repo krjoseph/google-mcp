@@ -145,6 +145,35 @@ export default class GoogleDrive {
         );
 
         const { id, webViewLink } = response.data;
+
+        // If creating a Google Document and content is provided, insert it
+        if (mimeType === "application/vnd.google-apps.document" && content) {
+          const requests: any[] = [
+            {
+              insertText: {
+                text: content,
+                endOfSegmentLocation: {
+                  segmentId: "",
+                },
+              },
+            },
+          ];
+
+          // If mimeType parameter suggests markdown, apply code block styling
+          // Note: We check the content parameter's mimeType hint, but for now
+          // we'll insert as plain text. Markdown styling can be added if needed.
+
+          await timeApiCall(
+            "Docs.insertContentIntoDocument",
+            () => this.docs.documents.batchUpdate({
+              documentId: id,
+              requestBody: {
+                requests: requests,
+              },
+            })
+          );
+        }
+
         return `Created ${mimeType} with name: ${name}\nID: ${id}\nLink: ${webViewLink}`;
       }
 
