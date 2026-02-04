@@ -35,8 +35,13 @@ fi
 # Set Heroku remote to target app
 heroku git:remote -a "$HEROKU_APP"
 
-# Ensure Node.js buildpack is set
-heroku buildpacks:set heroku/nodejs -a "$HEROKU_APP" || true
+# In CI, git push needs the API key in the URL (no interactive auth)
+if [ -n "${HEROKU_API_KEY:-}" ]; then
+    git remote set-url heroku "https://heroku:${HEROKU_API_KEY}@git.heroku.com/${HEROKU_APP}.git"
+fi
+
+# Ensure Node.js buildpack is set (ignore "already set" message)
+heroku buildpacks:set heroku/nodejs -a "$HEROKU_APP" 2>/dev/null || true
 
 # Commit Procfile if needed
 if [ -n "$(git status --porcelain Procfile)" ]; then
