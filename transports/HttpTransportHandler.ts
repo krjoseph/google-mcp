@@ -131,9 +131,13 @@ export class HttpTransportHandler {
             clearTimeout(timeout);
             console.log(`Request closed: ${req.method} ${req.url}`);
         });
-        req.on('error', (error) => {
+        req.on('error', (error: NodeJS.ErrnoException) => {
             clearTimeout(timeout);
-            console.log(`Request error: ${req.method} ${req.url}`, error.message);
+            // Client aborts and connection resets are normal (e.g. GET /mcp closed when client disconnects SSE)
+            const isClientAbort = error.message === 'aborted' || error.code === 'ECONNRESET';
+            if (!isClientAbort) {
+                console.log(`Request error: ${req.method} ${req.url}`, error.message);
+            }
         });
 
         if (req.method === 'GET' && req.url === '/.well-known/openid-configuration') {
