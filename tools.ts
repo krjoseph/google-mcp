@@ -501,6 +501,7 @@ export const CREATE_FILE_TOOL: Tool = {
   },
 };
 
+// Currently disabled (excluded in the tool list) in favour of append to file tool
 export const UPDATE_FILE_TOOL: Tool = {
   name: "google_drive_update_file",
   description: "Update the content of an existing file in Google Drive",
@@ -854,7 +855,8 @@ export const toolsPerScope = {
     LIST_FILES_TOOL,
     GET_FILE_CONTENT_TOOL,
     CREATE_FILE_TOOL,
-    UPDATE_FILE_TOOL,
+    // Disabled in favour of append to file tool
+    // UPDATE_FILE_TOOL,
     APPEND_TO_FILE_TOOL,
     DELETE_FILE_TOOL,
     SHARE_FILE_TOOL,
@@ -903,7 +905,8 @@ const tools = [
   LIST_FILES_TOOL,
   GET_FILE_CONTENT_TOOL,
   CREATE_FILE_TOOL,
-  UPDATE_FILE_TOOL,
+  // Disabled in favour of append to file tool
+  // UPDATE_FILE_TOOL,
   APPEND_TO_FILE_TOOL,
   DELETE_FILE_TOOL,
   SHARE_FILE_TOOL,
