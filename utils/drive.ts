@@ -26,10 +26,30 @@ export default class GoogleDrive {
     fields?: string
   ) {
     try {
+      const buildQuery = (rawQuery?: string) => {
+        const baseFilter = "trashed = false";
+        if (!rawQuery || rawQuery.trim().length === 0) {
+          return baseFilter;
+        }
+
+        const trimmed = rawQuery.trim();
+        const hasOperators = /[=<>]/.test(trimmed);
+        const hasKeywords = /\b(contains|in|has|not|and|or)\b/i.test(trimmed);
+        const isSimple = !hasOperators && !hasKeywords;
+        const escaped = trimmed.replace(/'/g, "\\'");
+        const userQuery = isSimple ? `name contains '${escaped}'` : trimmed;
+
+        if (/\btrashed\b/i.test(userQuery)) {
+          return userQuery;
+        }
+
+        return `${userQuery} and ${baseFilter}`;
+      };
+
       const response: any = await timeApiCall(
         "Drive.listFiles",
         () => this.drive.files.list({
-          q: query || "trashed = false",
+          q: buildQuery(query),
           pageSize: pageSize,
           orderBy: orderBy || "modifiedTime desc",
           fields:
