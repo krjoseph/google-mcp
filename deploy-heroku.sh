@@ -3,6 +3,17 @@
 # Exit on error
 set -e
 
+# BRANCH_TO_DEPLOY is required (e.g. main, or feature branch name)
+# HEROKU_APP is optional (default: google-mcp-dev)
+BRANCH_TO_DEPLOY="${1:-}"
+HEROKU_APP="${2:-google-mcp-dev}"
+if [ -z "$BRANCH_TO_DEPLOY" ]; then
+    echo "Usage: $0 <BRANCH_TO_DEPLOY> [HEROKU_APP]"
+    echo "Example: $0 main"
+    echo "Example: $0 main google-mcp"
+    exit 1
+fi
+
 # Check for Heroku CLI
 if ! command -v heroku &> /dev/null
 then
@@ -10,8 +21,10 @@ then
     exit 1
 fi
 
-# Login to Heroku (if not already logged in)
-heroku whoami &> /dev/null || heroku login
+# Login to Heroku (if not already logged in; skip when HEROKU_API_KEY is set for CI)
+if [ -z "${HEROKU_API_KEY:-}" ]; then
+    heroku whoami &> /dev/null || heroku login
+fi
 
 # Create Procfile if it doesn't exist
 if [ ! -f Procfile ]; then
@@ -19,11 +32,11 @@ if [ ! -f Procfile ]; then
     echo "Created Procfile."
 fi
 
-# Set Heroku remote to existing app 'google-mcp-dev'
-heroku git:remote -a google-mcp-dev
+# Set Heroku remote to target app
+heroku git:remote -a "$HEROKU_APP"
 
 # Ensure Node.js buildpack is set
-heroku buildpacks:set heroku/nodejs -a google-mcp-dev || true
+heroku buildpacks:set heroku/nodejs -a "$HEROKU_APP" || true
 
 # Commit Procfile if needed
 if [ -n "$(git status --porcelain Procfile)" ]; then
@@ -37,10 +50,7 @@ if [ -n "$(git status --porcelain package.json)" ]; then
     git commit -m "Add tsx dependency for TypeScript execution"
 fi
 
-# Set the branch to deploy
-BRANCH_TO_DEPLOY="google_drive-append_to_file"
-
 # Push to Heroku
 git push heroku $BRANCH_TO_DEPLOY:main
 
-echo "Deployment to Heroku app 'google-mcp-dev' initiated."
+echo "Deployment to Heroku app '$HEROKU_APP' initiated."
