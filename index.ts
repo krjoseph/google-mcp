@@ -47,6 +47,7 @@ import {
   isDeleteTaskArgs,
   isCreateTaskListArgs,
   isDeleteTaskListArgs,
+  isAppendToFileArgs,
 } from "./utils/helper.js";
 import { ClientManager } from "./utils/client-manager.js";
 import { StdioTransportHandler } from "./transports/StdioTransportHandler.js";
@@ -463,20 +464,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
           orderBy,
           fields
         );
-
-        if (!result?.length) {
-          return {
-            content: [{ type: "text", text: "No files found" }],
-            isError: false,
-          };
-        }
-
         return {
-          content: [{ type: "text", text: JSON.stringify({
-              data: result,
-              _type: "listOfDocuments",
-            })
-          }],
+          content: [{ type: "text", text: result }],
           isError: false,
         };
       }
@@ -518,6 +507,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
         }
         const { fileId, content, mimeType } = args;
         const result = await (await clientManager.getGoogleDriveInstance(authToken)).updateFile(
+          fileId,
+          content,
+          mimeType
+        );
+        return {
+          content: [{ type: "text", text: result }],
+          isError: false,
+        };
+      }
+
+      case "google_drive_append_to_file": {
+        if (!isAppendToFileArgs(args)) {
+          throw new Error("Invalid arguments for google_drive_append_to_file");
+        }
+        const { fileId, content, mimeType } = args;
+        const result = await (await clientManager.getGoogleDriveInstance(authToken)).appendToFile(
           fileId,
           content,
           mimeType
