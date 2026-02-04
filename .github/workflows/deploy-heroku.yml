@@ -1,0 +1,25 @@
+# Auto-deploy to Heroku (google-mcp-dev) when merging to main.
+# Requires GitHub secret: HEROKU_API_KEY (from https://dashboard.heroku.com/account)
+
+name: Deploy to Heroku
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      - name: Deploy to Heroku (google-mcp-dev)
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: chmod +x deploy-heroku.sh && ./deploy-heroku.sh main

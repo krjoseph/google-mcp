@@ -1,0 +1,31 @@
+# Manual deploy to Heroku production app (google-mcp).
+# Run from Actions tab → Deploy to Heroku (Prod) → Run workflow.
+# Requires GitHub secret: HEROKU_API_KEY
+
+name: Deploy to Heroku (Prod)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'main'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.branch }}
+
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      - name: Deploy to Heroku (google-mcp prod)
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: chmod +x deploy-heroku.sh && ./deploy-heroku.sh ${{ inputs.branch }} google-mcp
