@@ -414,6 +414,82 @@ export function isDeleteTaskListArgs(args: any): args is {
   return args && typeof args.taskListId === "string";
 }
 
+// Google Meet (transcripts) validation functions
+export function isListMeetingsArgs(args: any): args is {
+  filter?: string;
+  pageSize?: number;
+  pageToken?: string;
+  includeAvailability?: boolean;
+} {
+  return (
+    args &&
+    (args.filter === undefined || typeof args.filter === "string") &&
+    (args.pageSize === undefined || typeof args.pageSize === "number") &&
+    (args.pageToken === undefined || typeof args.pageToken === "string") &&
+    (args.includeAvailability === undefined ||
+      typeof args.includeAvailability === "boolean")
+  );
+}
+
+export function isGetMeetingInfoArgs(args: any): args is {
+  conferenceRecordId: string;
+} {
+  return args && typeof args.conferenceRecordId === "string";
+}
+
+export function isGetMeetingTranscriptArgs(args: any): args is {
+  conferenceRecordId: string;
+  includeTimestamps?: boolean;
+  includeParticipant?: boolean;
+} {
+  return (
+    args &&
+    typeof args.conferenceRecordId === "string" &&
+    (args.includeTimestamps === undefined ||
+      typeof args.includeTimestamps === "boolean") &&
+    (args.includeParticipant === undefined ||
+      typeof args.includeParticipant === "boolean")
+  );
+}
+
+export function isSearchMeetingTranscriptsArgs(args: any): args is {
+  query: string;
+  timeMin?: string;
+  timeMax?: string;
+  maxMeetings?: number;
+} {
+  return (
+    args &&
+    typeof args.query === "string" &&
+    (args.timeMin === undefined || typeof args.timeMin === "string") &&
+    (args.timeMax === undefined || typeof args.timeMax === "string") &&
+    (args.maxMeetings === undefined || typeof args.maxMeetings === "number")
+  );
+}
+
+export function isQueryGeminiNotesArgs(args: any): args is {
+  query: string;
+  folderId?: string;
+  folderName?: string;
+  titlePattern?: string;
+  timeMin?: string;
+  timeMax?: string;
+  meetingName?: string;
+  maxDocs?: number;
+} {
+  return (
+    args &&
+    typeof args.query === "string" &&
+    (args.folderId === undefined || typeof args.folderId === "string") &&
+    (args.folderName === undefined || typeof args.folderName === "string") &&
+    (args.titlePattern === undefined || typeof args.titlePattern === "string") &&
+    (args.timeMin === undefined || typeof args.timeMin === "string") &&
+    (args.timeMax === undefined || typeof args.timeMax === "string") &&
+    (args.meetingName === undefined || typeof args.meetingName === "string") &&
+    (args.maxDocs === undefined || typeof args.maxDocs === "number")
+  );
+}
+
 export function hashString(input: string): string {
   return createHash("sha256").update(input).digest("hex");
 }

@@ -798,6 +798,159 @@ export const DELETE_TASKLIST_TOOL: Tool = {
   },
 };
 
+// Google Meet (transcripts) Tools
+export const LIST_MEETINGS_TOOL: Tool = {
+  name: "google_meet_list_meetings",
+  description:
+    "List Google Meet conference records (past or ongoing meetings). Each meeting includes meetingName (from linked Calendar event when available), meetingCode, and meetingUri. Set includeAvailability to true to see which meetings have transcript or recording available. Ordered by start time descending by default.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      filter: {
+        type: "string",
+        description:
+          "Optional filter in EBNF format. Filterable fields: space.meeting_code, space.name, start_time, end_time. E.g. start_time>=\"2024-01-01T00:00:00.000Z\" AND start_time<=\"2024-01-31T23:59:59.000Z\"",
+      },
+      pageSize: {
+        type: "number",
+        description: "Maximum number of meetings to return (default 25, max 100)",
+      },
+      pageToken: {
+        type: "string",
+        description: "Page token from a previous list call for pagination",
+      },
+      includeAvailability: {
+        type: "boolean",
+        description:
+          "If true, each meeting in the response includes hasTranscript and hasRecording. Slower when listing many meetings (checks up to 15 by default).",
+      },
+    },
+  },
+};
+
+export const GET_MEETING_INFO_TOOL: Tool = {
+  name: "google_meet_get_meeting_info",
+  description:
+    "Get details for one Google Meet conference including meeting name (from linked Calendar event when available), meeting code and URI, and whether a transcript and/or recording is available, plus links to the transcript doc or recording playback when present.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      conferenceRecordId: {
+        type: "string",
+        description:
+          "Conference record ID or full resource name (e.g. conferenceRecords/abc123)",
+      },
+    },
+    required: ["conferenceRecordId"],
+  },
+};
+
+export const GET_MEETING_TRANSCRIPT_TOOL: Tool = {
+  name: "google_meet_get_transcript",
+  description:
+    "Get the full transcript for a Google Meet conference. Use the conference record ID or name (e.g. from google_meet_list_meetings). Returns all spoken text in order, suitable for summarization or extracting key decisions.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      conferenceRecordId: {
+        type: "string",
+        description:
+          "Conference record ID or full resource name (e.g. conferenceRecords/abc123)",
+      },
+      includeTimestamps: {
+        type: "boolean",
+        description: "Include timestamps for each segment (default true)",
+      },
+      includeParticipant: {
+        type: "boolean",
+        description: "Include participant identifier for each segment (default true)",
+      },
+    },
+    required: ["conferenceRecordId"],
+  },
+};
+
+export const SEARCH_MEETING_TRANSCRIPTS_TOOL: Tool = {
+  name: "google_meet_search_transcripts",
+  description:
+    "Search across your Google Meet transcripts by keyword or phrase. Optionally restrict by time range. Returns matching meetings with excerpt snippets. Useful for finding discussions about specific topics or decisions.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Search text to find in meeting transcripts (case-insensitive)",
+      },
+      timeMin: {
+        type: "string",
+        description:
+          "Optional. Start of time range (RFC3339), e.g. 2024-01-01T00:00:00.000Z",
+      },
+      timeMax: {
+        type: "string",
+        description:
+          "Optional. End of time range (RFC3339), e.g. 2024-01-31T23:59:59.000Z",
+      },
+      maxMeetings: {
+        type: "number",
+        description: "Max number of recent meetings to search (default 20)",
+      },
+    },
+    required: ["query"],
+  },
+};
+
+// Gemini meeting notes (Drive + Gemini API)
+export const QUERY_GEMINI_NOTES_TOOL: Tool = {
+  name: "google_meet_query_gemini_notes",
+  description:
+    "Query and summarize across Gemini meeting notes from Google Meet saved in Drive. By default searches all Drive for docs whose title contains 'Notes by Gemini' (no folder needed). Optionally scope by folderId/folderName, date range, or meeting name. Requires GEMINI_API_KEY.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Question to ask over meeting notes, e.g. key decisions or action items.",
+      },
+      folderId: {
+        type: "string",
+        description:
+          "Optional. Google Drive folder ID where meeting notes are stored. If omitted, uses folderName to find the folder.",
+      },
+      folderName: {
+        type: "string",
+        description:
+          "Optional. Folder name to search for (default: 'Meet Recordings'). Used when folderId is not set.",
+      },
+      timeMin: {
+        type: "string",
+        description:
+          "Optional. Only include notes modified on or after this time (RFC3339).",
+      },
+      timeMax: {
+        type: "string",
+        description:
+          "Optional. Only include notes modified on or before this time (RFC3339).",
+      },
+      meetingName: {
+        type: "string",
+        description:
+          "Optional. Filter to files whose name contains this string (e.g. meeting title).",
+      },
+      maxDocs: {
+        type: "number",
+        description: "Max number of note documents to load (default 15, max 25).",
+      },
+      titlePattern: {
+        type: "string",
+        description:
+          "When not using a folder, search Drive for docs whose title contains this string. Default: 'Notes by Gemini' (Google Meet uses this suffix). Use a different value if your notes use another naming convention.",
+      },
+    },
+    required: ["query"],
+  },
+};
+
 export function getToolsForScopes(scopes?: string[]): Tool[] {
   if (!scopes) return tools;
 
@@ -850,6 +1003,9 @@ export const toolsPerScope = {
   "https://www.googleapis.com/auth/drive.readonly": [
     LIST_FILES_TOOL,
     GET_FILE_CONTENT_TOOL,
+    // Exports meeting notes from drive and summarizes them using Gemini API
+    // Not super efficient and useful in our case, so disabled for now
+    // QUERY_GEMINI_NOTES_TOOL,
   ],
   "https://www.googleapis.com/auth/drive": [
     LIST_FILES_TOOL,
@@ -860,6 +1016,9 @@ export const toolsPerScope = {
     APPEND_TO_FILE_TOOL,
     DELETE_FILE_TOOL,
     SHARE_FILE_TOOL,
+    // Exports meeting notes from drive and summarizes them using Gemini API
+    // Not super efficient and useful in our case, so disabled for now
+    // QUERY_GEMINI_NOTES_TOOL,
   ],
   "https://www.googleapis.com/auth/tasks.readonly": [
     LIST_TASKLISTS_TOOL,
@@ -877,6 +1036,12 @@ export const toolsPerScope = {
     DELETE_TASK_TOOL,
     CREATE_TASKLIST_TOOL,
     DELETE_TASKLIST_TOOL,
+  ],
+  "https://www.googleapis.com/auth/meetings.space.readonly": [
+    LIST_MEETINGS_TOOL,
+    GET_MEETING_INFO_TOOL,
+    GET_MEETING_TRANSCRIPT_TOOL,
+    SEARCH_MEETING_TRANSCRIPTS_TOOL,
   ],
 };
 
@@ -922,6 +1087,17 @@ const tools = [
   DELETE_TASK_TOOL,
   CREATE_TASKLIST_TOOL,
   DELETE_TASKLIST_TOOL,
+
+  // Google Meet (transcripts) tools
+  LIST_MEETINGS_TOOL,
+  GET_MEETING_INFO_TOOL,
+  GET_MEETING_TRANSCRIPT_TOOL,
+  SEARCH_MEETING_TRANSCRIPTS_TOOL,
+
+  // Gemini meeting notes (Drive + Gemini API)
+  // Exports meeting notes from drive and summarizes them using Gemini API
+  // Not super efficient and useful in our case, so disabled for now
+  // QUERY_GEMINI_NOTES_TOOL,
 ];
 
 export default tools;
