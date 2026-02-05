@@ -126,6 +126,46 @@ export default class GoogleCalendar {
     }
   }
 
+  /**
+   * Returns the title (summary) of the first calendar event in the given time range
+   * that has a Google Meet link matching the given meeting code. Used to resolve meeting names for Meet conference records.
+   */
+  async getEventSummaryForMeetInRange(
+    meetingCode: string,
+    timeMin: string,
+    timeMax: string,
+    calendarId?: string
+  ): Promise<string | null> {
+    try {
+      const targetCalendarId = calendarId || this.defaultCalendarId;
+      const params: any = {
+        calendarId: targetCalendarId,
+        timeMin: normalizeToRFC3339(timeMin),
+        timeMax: normalizeToRFC3339(timeMax),
+        singleEvents: true,
+        maxResults: 20,
+      };
+      const res: any = await timeApiCall(
+        "Calendar.listEventsForMeetMatch",
+        () => this.calendar.events.list(params)
+      );
+      const items = res.data.items || [];
+      const code = meetingCode.toLowerCase();
+      for (const item of items) {
+        const uri =
+          item.conferenceData?.entryPoints?.find(
+            (ep: any) => ep.uri && typeof ep.uri === "string"
+          )?.uri;
+        if (uri && uri.toLowerCase().includes(code)) {
+          return item.summary || null;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   async getEvent(eventId: string, calendarId?: string) {
     try {
       const targetCalendarId = calendarId || this.defaultCalendarId;

@@ -86,6 +86,7 @@ export async function createAuthClient(oauthToken?: string): Promise<any> {
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/tasks",
+        "https://www.googleapis.com/auth/meetings.space.readonly",
       ],
       subject: process.env.GMAIL_USER_TO_IMPERSONATE,
     });
@@ -134,6 +135,7 @@ export function generateOAuthConsentUrl(scopes?: string[]): string {
       "https://www.googleapis.com/auth/drive",
       "https://www.googleapis.com/auth/calendar",
       "https://www.googleapis.com/auth/tasks",
+      "https://www.googleapis.com/auth/meetings.space.readonly",
     ],
     prompt: "consent",
   });

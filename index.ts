@@ -8,7 +8,9 @@ import GoogleCalendar from "./utils/calendar.js";
 import GoogleGmail from "./utils/gmail.js";
 import GoogleDrive from "./utils/drive.js";
 import GoogleTasks from "./utils/tasks.js";
+import GoogleMeet from "./utils/meet.js";
 import { getToolsForScopes } from "./tools.js";
+import { queryMeetingNotes } from "./utils/gemini-notes.js";
 import { createAuthClient, extractAuthToken } from "./utils/auth.js";
 import {
   // Calendar validators
@@ -48,6 +50,12 @@ import {
   isCreateTaskListArgs,
   isDeleteTaskListArgs,
   isAppendToFileArgs,
+  // Meet (transcripts) validators
+  isListMeetingsArgs,
+  isGetMeetingInfoArgs,
+  isGetMeetingTranscriptArgs,
+  isSearchMeetingTranscriptsArgs,
+  isQueryGeminiNotesArgs,
 } from "./utils/helper.js";
 import { ClientManager } from "./utils/client-manager.js";
 import { StdioTransportHandler } from "./transports/StdioTransportHandler.js";
@@ -119,7 +127,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
         !clientManager.getGoogleCalendarInstance() ||
         !clientManager.getGoogleGmailInstance() ||
         !clientManager.getGoogleDriveInstance() ||
-        !clientManager.getGoogleTasksInstance()
+        !clientManager.getGoogleTasksInstance() ||
+        !clientManager.getGoogleMeetInstance()
       ) {
         throw new Error("Authentication failed to initialize services");
       }
@@ -612,7 +621,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
           throw new Error("Invalid arguments for google_tasks_get_task");
         }
         const { taskId, taskListId } = args;
-        const result = await (await clientManager.getGoogleTasksInstance()).getTask(taskId, taskListId);
+        const result = await (await clientManager.getGoogleTasksInstance(authToken)).getTask(taskId, taskListId);
         return {
           content: [{ type: "text", text: result }],
           isError: false,
@@ -702,6 +711,107 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
           isError: false,
         };
       }
+
+      // Google Meet (transcripts) tools handlers
+      case "google_meet_list_meetings": {
+        if (!isListMeetingsArgs(args)) {
+          throw new Error("Invalid arguments for google_meet_list_meetings");
+        }
+        const { filter, pageSize, pageToken, includeAvailability } = args;
+        const result = await (await clientManager.getGoogleMeetInstance(authToken)).listConferenceRecords(
+          filter,
+          pageSize,
+          pageToken,
+          includeAvailability === true
+        );
+        return {
+          content: [{ type: "text", text: result }],
+          isError: false,
+        };
+      }
+
+      case "google_meet_get_meeting_info": {
+        if (!isGetMeetingInfoArgs(args)) {
+          throw new Error("Invalid arguments for google_meet_get_meeting_info");
+        }
+        const { conferenceRecordId } = args;
+        const result = await (await clientManager.getGoogleMeetInstance(authToken)).getMeetingInfo(conferenceRecordId);
+        return {
+          content: [{ type: "text", text: result }],
+          isError: false,
+        };
+      }
+
+      case "google_meet_get_transcript": {
+        if (!isGetMeetingTranscriptArgs(args)) {
+          throw new Error("Invalid arguments for google_meet_get_transcript");
+        }
+        const { conferenceRecordId, includeTimestamps, includeParticipant } = args;
+        const result = await (await clientManager.getGoogleMeetInstance(authToken)).getFullTranscript(
+          conferenceRecordId,
+          { includeTimestamps, includeParticipant }
+        );
+        return {
+          content: [{ type: "text", text: result }],
+          isError: false,
+        };
+      }
+
+      case "google_meet_search_transcripts": {
+        if (!isSearchMeetingTranscriptsArgs(args)) {
+          throw new Error("Invalid arguments for google_meet_search_transcripts");
+        }
+        const { query, timeMin, timeMax, maxMeetings } = args;
+        const result = await (await clientManager.getGoogleMeetInstance(authToken)).searchTranscripts(
+          query,
+          { timeMin, timeMax, maxMeetings }
+        );
+        return {
+          content: [{ type: "text", text: result }],
+          isError: false,
+        };
+      }
+
+      case "google_meet_query_gemini_notes": {
+        if (!isQueryGeminiNotesArgs(args)) {
+          throw new Error("Invalid arguments for google_meet_query_gemini_notes");
+        }
+        const geminiApiKey = process.env.GEMINI_API_KEY;
+        if (!geminiApiKey) {
+          return {
+            content: [{
+              type: "text",
+              text: "GEMINI_API_KEY is not set. Get an API key at https://aistudio.google.com/apikey and set it in your environment to use this tool.",
+            }],
+            isError: true,
+          };
+        }
+        const {
+          query,
+          folderId,
+          folderName,
+          titlePattern,
+          timeMin,
+          timeMax,
+          meetingName,
+          maxDocs,
+        } = args;
+        const drive = await clientManager.getGoogleDriveInstance(authToken);
+        const result = await queryMeetingNotes(drive, geminiApiKey, query, {
+          folderId,
+          folderName,
+          titlePattern,
+          timeMin,
+          timeMax,
+          meetingName,
+          maxDocs,
+        });
+        return {
+          content: [{ type: "text", text: result }],
+          isError: false,
+        };
+      }
+
       default:
         return {
           content: [{ type: "text", text: `Unknown tool: ${name}` }],
@@ -742,11 +852,13 @@ export default async function startServer() {
   if (!MULTIUSER_MODE) {
     initializationPromise = createAuthClient()
       .then((authClient) => {
+        const calendar = new GoogleCalendar(authClient);
         clientManager = new ClientManager(
-          new GoogleCalendar(authClient),
+          calendar,
           new GoogleGmail(authClient),
           new GoogleDrive(authClient),
-          new GoogleTasks(authClient)
+          new GoogleTasks(authClient),
+          new GoogleMeet(authClient, calendar)
         );
       })
       .catch((error) => {

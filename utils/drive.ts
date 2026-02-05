@@ -72,6 +72,79 @@ export default class GoogleDrive {
     }
   }
 
+  /**
+   * Get the first folder ID whose name contains the given string (e.g. "Meet Recordings").
+   */
+  async getFolderIdByName(folderName: string): Promise<string | null> {
+    try {
+      const q = `name contains '${folderName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+      const response: any = await timeApiCall(
+        "Drive.listFoldersByName",
+        () => this.drive.files.list({
+          q,
+          pageSize: 5,
+          fields: "files(id, name)",
+        })
+      );
+      const files = response.data.files || [];
+      return files.length > 0 ? files[0].id : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * List files in a Drive folder (e.g. meeting notes). Optional filters by date and name.
+   */
+  async listFilesInFolder(
+    folderId: string,
+    options?: {
+      pageSize?: number;
+      orderBy?: string;
+      timeMin?: string;
+      timeMax?: string;
+      nameContains?: string;
+      mimeType?: string;
+    }
+  ): Promise<string> {
+    try {
+      let q = `'${folderId.replace(/'/g, "\\'")}' in parents and trashed = false`;
+      if (options?.mimeType) {
+        q += ` and mimeType = '${options.mimeType}'`;
+      } else {
+        q += " and (mimeType = 'application/vnd.google-apps.document' or mimeType = 'text/plain')";
+      }
+      if (options?.timeMin) {
+        q += ` and modifiedTime >= '${options.timeMin}'`;
+      }
+      if (options?.timeMax) {
+        q += ` and modifiedTime <= '${options.timeMax}'`;
+      }
+      if (options?.nameContains) {
+        q += ` and name contains '${options.nameContains.replace(/'/g, "\\'")}'`;
+      }
+      const response: any = await timeApiCall(
+        "Drive.listFilesInFolder",
+        () => this.drive.files.list({
+          q,
+          pageSize: options?.pageSize ?? 50,
+          orderBy: options?.orderBy ?? "modifiedTime desc",
+          fields: "files(id, name, mimeType, modifiedTime, webViewLink)",
+        })
+      );
+      if (!response.data.files || response.data.files.length === 0) {
+        return "[]";
+      }
+      return JSON.stringify(response.data.files);
+    } catch (error) {
+      throw new Error(
+        `Failed to list files in folder: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
   async getFileContent(fileId: string) {
     try {
       // First get the file metadata to check its type
