@@ -900,57 +900,6 @@ export const SEARCH_MEETING_TRANSCRIPTS_TOOL: Tool = {
   },
 };
 
-// Gemini meeting notes (Drive + Gemini API)
-export const QUERY_GEMINI_NOTES_TOOL: Tool = {
-  name: "google_meet_query_gemini_notes",
-  description:
-    "Query and summarize across Gemini meeting notes from Google Meet saved in Drive. By default searches all Drive for docs whose title contains 'Notes by Gemini' (no folder needed). Optionally scope by folderId/folderName, date range, or meeting name. Requires GEMINI_API_KEY.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      query: {
-        type: "string",
-        description: "Question to ask over meeting notes, e.g. key decisions or action items.",
-      },
-      folderId: {
-        type: "string",
-        description:
-          "Optional. Google Drive folder ID where meeting notes are stored. If omitted, uses folderName to find the folder.",
-      },
-      folderName: {
-        type: "string",
-        description:
-          "Optional. Folder name to search for (default: 'Meet Recordings'). Used when folderId is not set.",
-      },
-      timeMin: {
-        type: "string",
-        description:
-          "Optional. Only include notes modified on or after this time (RFC3339).",
-      },
-      timeMax: {
-        type: "string",
-        description:
-          "Optional. Only include notes modified on or before this time (RFC3339).",
-      },
-      meetingName: {
-        type: "string",
-        description:
-          "Optional. Filter to files whose name contains this string (e.g. meeting title).",
-      },
-      maxDocs: {
-        type: "number",
-        description: "Max number of note documents to load (default 15, max 25).",
-      },
-      titlePattern: {
-        type: "string",
-        description:
-          "When not using a folder, search Drive for docs whose title contains this string. Default: 'Notes by Gemini' (Google Meet uses this suffix). Use a different value if your notes use another naming convention.",
-      },
-    },
-    required: ["query"],
-  },
-};
-
 export function getToolsForScopes(scopes?: string[]): Tool[] {
   if (!scopes) return tools;
 
@@ -1003,9 +952,6 @@ export const toolsPerScope = {
   "https://www.googleapis.com/auth/drive.readonly": [
     LIST_FILES_TOOL,
     GET_FILE_CONTENT_TOOL,
-    // Exports meeting notes from drive and summarizes them using Gemini API
-    // Not super efficient and useful in our case, so disabled for now
-    // QUERY_GEMINI_NOTES_TOOL,
   ],
   "https://www.googleapis.com/auth/drive": [
     LIST_FILES_TOOL,
@@ -1016,9 +962,6 @@ export const toolsPerScope = {
     APPEND_TO_FILE_TOOL,
     DELETE_FILE_TOOL,
     SHARE_FILE_TOOL,
-    // Exports meeting notes from drive and summarizes them using Gemini API
-    // Not super efficient and useful in our case, so disabled for now
-    // QUERY_GEMINI_NOTES_TOOL,
   ],
   "https://www.googleapis.com/auth/tasks.readonly": [
     LIST_TASKLISTS_TOOL,
@@ -1093,11 +1036,6 @@ const tools = [
   GET_MEETING_INFO_TOOL,
   GET_MEETING_TRANSCRIPT_TOOL,
   SEARCH_MEETING_TRANSCRIPTS_TOOL,
-
-  // Gemini meeting notes (Drive + Gemini API)
-  // Exports meeting notes from drive and summarizes them using Gemini API
-  // Not super efficient and useful in our case, so disabled for now
-  // QUERY_GEMINI_NOTES_TOOL,
 ];
 
 export default tools;
