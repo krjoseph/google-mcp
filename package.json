@@ -28,6 +28,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@google/genai": "^1.40.0",
     "@modelcontextprotocol/sdk": "^1.17.4",
     "date-fns": "^4.1.0",
     "googleapis": "^148.0.0",
