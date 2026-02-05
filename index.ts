@@ -10,7 +10,6 @@ import GoogleDrive from "./utils/drive.js";
 import GoogleTasks from "./utils/tasks.js";
 import GoogleMeet from "./utils/meet.js";
 import { getToolsForScopes } from "./tools.js";
-import { queryMeetingNotes } from "./utils/gemini-notes.js";
 import { createAuthClient, extractAuthToken } from "./utils/auth.js";
 import {
   // Calendar validators
@@ -55,7 +54,6 @@ import {
   isGetMeetingInfoArgs,
   isGetMeetingTranscriptArgs,
   isSearchMeetingTranscriptsArgs,
-  isQueryGeminiNotesArgs,
 } from "./utils/helper.js";
 import { ClientManager } from "./utils/client-manager.js";
 import { StdioTransportHandler } from "./transports/StdioTransportHandler.js";
@@ -766,46 +764,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
           query,
           { timeMin, timeMax, maxMeetings }
         );
-        return {
-          content: [{ type: "text", text: result }],
-          isError: false,
-        };
-      }
-
-      case "google_meet_query_gemini_notes": {
-        if (!isQueryGeminiNotesArgs(args)) {
-          throw new Error("Invalid arguments for google_meet_query_gemini_notes");
-        }
-        const geminiApiKey = process.env.GEMINI_API_KEY;
-        if (!geminiApiKey) {
-          return {
-            content: [{
-              type: "text",
-              text: "GEMINI_API_KEY is not set. Get an API key at https://aistudio.google.com/apikey and set it in your environment to use this tool.",
-            }],
-            isError: true,
-          };
-        }
-        const {
-          query,
-          folderId,
-          folderName,
-          titlePattern,
-          timeMin,
-          timeMax,
-          meetingName,
-          maxDocs,
-        } = args;
-        const drive = await clientManager.getGoogleDriveInstance(authToken);
-        const result = await queryMeetingNotes(drive, geminiApiKey, query, {
-          folderId,
-          folderName,
-          titlePattern,
-          timeMin,
-          timeMax,
-          meetingName,
-          maxDocs,
-        });
         return {
           content: [{ type: "text", text: result }],
           isError: false,

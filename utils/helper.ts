@@ -467,29 +467,6 @@ export function isSearchMeetingTranscriptsArgs(args: any): args is {
   );
 }
 
-export function isQueryGeminiNotesArgs(args: any): args is {
-  query: string;
-  folderId?: string;
-  folderName?: string;
-  titlePattern?: string;
-  timeMin?: string;
-  timeMax?: string;
-  meetingName?: string;
-  maxDocs?: number;
-} {
-  return (
-    args &&
-    typeof args.query === "string" &&
-    (args.folderId === undefined || typeof args.folderId === "string") &&
-    (args.folderName === undefined || typeof args.folderName === "string") &&
-    (args.titlePattern === undefined || typeof args.titlePattern === "string") &&
-    (args.timeMin === undefined || typeof args.timeMin === "string") &&
-    (args.timeMax === undefined || typeof args.timeMax === "string") &&
-    (args.meetingName === undefined || typeof args.meetingName === "string") &&
-    (args.maxDocs === undefined || typeof args.maxDocs === "number")
-  );
-}
-
 export function hashString(input: string): string {
   return createHash("sha256").update(input).digest("hex");
 }
