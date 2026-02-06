@@ -56,6 +56,11 @@ if [ -n "$(git status --porcelain package.json)" ]; then
 fi
 
 # Push to Heroku
-git push heroku $BRANCH_TO_DEPLOY:main
+# Use --force when deploying main branch
+if [ "$BRANCH_TO_DEPLOY" = "main" ]; then
+    git push heroku $BRANCH_TO_DEPLOY:main --force
+else
+    git push heroku $BRANCH_TO_DEPLOY:main
+fi
 
 echo "Deployment to Heroku app '$HEROKU_APP' initiated."
