@@ -903,7 +903,23 @@ export const SEARCH_MEETING_TRANSCRIPTS_TOOL: Tool = {
 export function getToolsForScopes(scopes?: string[]): Tool[] {
   if (!scopes) return tools;
 
-  const allTools = scopes
+  // Special case: if meetings.space.readonly is present with calendar scope,
+  // the calendar scope is only for hydrating meeting info (via Calendar API),
+  // not for exposing calendar tools
+  const hasMeetingsScope = scopes.includes("https://www.googleapis.com/auth/meetings.space.readonly");
+  const hasCalendarScope = scopes.includes("https://www.googleapis.com/auth/calendar") ||
+                           scopes.includes("https://www.googleapis.com/auth/calendar.readonly");
+
+  let scopesToProcess = scopes;
+  if (hasMeetingsScope && hasCalendarScope) {
+    // Exclude calendar scopes from tool mapping - only use them for backend hydration
+    scopesToProcess = scopes.filter(
+      scope => scope !== "https://www.googleapis.com/auth/calendar" &&
+               scope !== "https://www.googleapis.com/auth/calendar.readonly"
+    );
+  }
+
+  const allTools = scopesToProcess
     .map(scope => toolsPerScope[scope as keyof typeof toolsPerScope])
     .flat()
     .filter(Boolean);
